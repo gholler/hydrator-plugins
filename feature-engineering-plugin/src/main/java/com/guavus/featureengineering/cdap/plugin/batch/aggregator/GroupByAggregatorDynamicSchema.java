@@ -1,0 +1,206 @@
+/*
+ * Copyright © 2016 Cask Data, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
+package com.guavus.featureengineering.cdap.plugin.batch.aggregator;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+
+import javax.ws.rs.Path;
+
+import com.guavus.featureengineering.cdap.plugin.batch.aggregator.function.AggregateFunction;
+
+import co.cask.cdap.api.annotation.Description;
+import co.cask.cdap.api.annotation.Name;
+import co.cask.cdap.api.annotation.Plugin;
+import co.cask.cdap.api.annotation.PluginFunction;
+import co.cask.cdap.api.annotation.PluginInput;
+import co.cask.cdap.api.annotation.PluginOutput;
+import co.cask.cdap.api.data.format.StructuredRecord;
+import co.cask.cdap.api.data.schema.Schema;
+import co.cask.cdap.api.data.schema.Schema.Field;
+import co.cask.cdap.etl.api.Emitter;
+import co.cask.cdap.etl.api.PipelineConfigurer;
+import co.cask.cdap.etl.api.StageConfigurer;
+import co.cask.cdap.etl.api.batch.BatchAggregator;
+import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
+
+/**
+ * Batch group by aggregator.
+ */
+@Plugin(type = BatchAggregator.PLUGIN_TYPE)
+@Name("GroupByAggregateDynamic")
+@Description("Groups by one or more fields, then performs one or more aggregate functions on each group. "
+		+ "Supports avg, count, count(*), first, last, max, min, and sum as aggregate functions.")
+@PluginInput(type = { "long:int:double:float", "*", "*", "*", "*", "*", "long:int:double:float",
+		"long:int:double:float:boolean", "long:int:double:float", "string:int:long" })
+@PluginOutput(type = { "double", "long", "same", "same", "same", "same", "double", "long:int:double:float:int",
+		"double", "int" })
+@PluginFunction(function = { "avg", "count", "first", "last", "min", "max", "stddev", "sum", "variance", "nuniq" })
+public class GroupByAggregatorDynamicSchema extends RecordAggregator {
+	private final GroupByConfigDynamicSchema conf;
+	private List<String> groupByFields;
+	private List<GroupByConfigDynamicSchema.FunctionInfo> functionInfos;
+	private Schema outputSchema;
+	private Map<String, AggregateFunction> aggregateFunctions;
+	private List<String> categoricalColumnsToBeCheckedList;
+
+	public GroupByAggregatorDynamicSchema(GroupByConfigDynamicSchema conf) {
+		super(conf.numPartitions);
+		this.conf = conf;
+	}
+
+	@Override
+	public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
+		StageConfigurer stageConfigurer = pipelineConfigurer.getStageConfigurer();
+		stageConfigurer.setOutputSchema(null);
+	}
+
+	@Override
+	public void initialize(BatchRuntimeContext context) throws Exception {
+		groupByFields = conf.getGroupByFields();
+		functionInfos = conf.getAggregates();
+		this.categoricalColumnsToBeCheckedList = conf.getCategoricalColumnsToBeChecked();
+	}
+
+	@Override
+	public void groupBy(StructuredRecord record, Emitter<StructuredRecord> emitter) throws Exception {
+		// app should provide some way to make some data calculated in configurePipeline
+		// available here.
+		// then we wouldn't have to calculate schema here
+		StructuredRecord.Builder builder = StructuredRecord.builder(getGroupKeySchema(record.getSchema()));
+		for (String groupByField : conf.getGroupByFields()) {
+			builder.set(groupByField, record.get(groupByField));
+		}
+		emitter.emit(builder.build());
+	}
+
+	@Override
+	public void aggregate(StructuredRecord groupKey, Iterator<StructuredRecord> iterator,
+			Emitter<StructuredRecord> emitter) throws Exception {
+		if (!iterator.hasNext()) {
+			return;
+		}
+
+		StructuredRecord firstVal = iterator.next();
+		initAggregates(firstVal.getSchema());
+		StructuredRecord.Builder builder = StructuredRecord.builder(outputSchema);
+		for (String groupByField : groupByFields) {
+			builder.set(groupByField, groupKey.get(groupByField));
+		}
+		updateAggregates(firstVal);
+
+		while (iterator.hasNext()) {
+			updateAggregates(iterator.next());
+		}
+
+		for (Map.Entry<String, AggregateFunction> aggregateFunction : aggregateFunctions.entrySet()) {
+			builder.set(aggregateFunction.getKey(), aggregateFunction.getValue().getAggregate());
+		}
+		emitter.emit(builder.build());
+	}
+
+	@Path("outputSchema")
+	public Schema getOutputSchema(GetSchemaRequest request) {
+		return null;
+	}
+
+	private void updateAggregates(StructuredRecord groupVal) {
+		for (AggregateFunction aggregateFunction : aggregateFunctions.values()) {
+			aggregateFunction.operateOn(groupVal);
+		}
+	}
+
+	private void initAggregates(Schema valueSchema) {
+		List<Schema.Field> outputFields = new ArrayList<>();
+		for (String groupByField : groupByFields) {
+			Schema.Field field = valueSchema.getField(groupByField);
+			if (field != null)
+				outputFields.add(field);
+		}
+		
+		aggregateFunctions = new HashMap<>();
+		for (GroupByConfigDynamicSchema.FunctionInfo functionInfo : functionInfos) {
+			if (functionInfo.getField().equals("*")) {
+				AggregateFunction aggregateFunction = functionInfo.getAggregateFunction(null);
+				outputFields.add(Schema.Field.of(functionInfo.getName(), aggregateFunction.getOutputSchema()));
+				continue;
+			}
+			Schema.Field inputField = valueSchema.getField(functionInfo.getField());
+			Schema fieldSchema = inputField == null ? null : inputField.getSchema();
+			if (fieldSchema == null) {
+				// could be the case that column is categorical column and exists in extended
+				// form along with dictionary in schema.
+//				for (String categoricalColumn : categoricalColumnsToBeCheckedList) {
+//					if (functionInfo.getField().contains(categoricalColumn)) {
+						List<Field> matchingFields = getAllMatchingSchemaFields(valueSchema.getFields(),
+								functionInfo.getField());
+						for (Field matchingField : matchingFields) {
+							String outputFieldName = functionInfo.getFunction().name().toLowerCase() + "_"
+									+ matchingField.getName() + "_";
+							AggregateFunction aggregateFunction = functionInfo
+									.getAggregateFunction(matchingField.getSchema());
+							aggregateFunction.beginFunction();
+							outputFields.add(Schema.Field.of(outputFieldName, aggregateFunction.getOutputSchema()));
+							aggregateFunctions.put(outputFieldName, aggregateFunction);
+						}
+//					}
+//				}
+				continue;
+			}
+			AggregateFunction aggregateFunction = functionInfo.getAggregateFunction(fieldSchema);
+			aggregateFunction.beginFunction();
+			outputFields.add(Schema.Field.of(functionInfo.getName(), aggregateFunction.getOutputSchema()));
+			aggregateFunctions.put(functionInfo.getName(), aggregateFunction);
+		}
+		outputSchema = Schema.recordOf(valueSchema.getRecordName() + ".agg", outputFields);
+	}
+
+	private List<Field> getAllMatchingSchemaFields(List<Field> fields, String fieldName) {
+		List<Field> matchingFields = new LinkedList<Field>();
+		for (Field field : fields) {
+			if (field.getName().contains(fieldName)) {
+				matchingFields.add(field);
+			}
+		}
+		return matchingFields;
+	}
+
+	private Schema getGroupKeySchema(Schema inputSchema) {
+		List<Schema.Field> fields = new ArrayList<>();
+		for (String groupByField : conf.getGroupByFields()) {
+			Schema.Field fieldSchema = inputSchema.getField(groupByField);
+			if (fieldSchema == null) {
+				throw new IllegalArgumentException(
+						String.format("Cannot group by field '%s' because it does not exist in input schema %s",
+								groupByField, inputSchema));
+			}
+			fields.add(fieldSchema);
+		}
+		return Schema.recordOf("group.key.schema", fields);
+	}
+
+	/**
+	 * Endpoint request for output schema.
+	 */
+	public static class GetSchemaRequest extends GroupByConfig {
+		private Schema inputSchema;
+	}
+}

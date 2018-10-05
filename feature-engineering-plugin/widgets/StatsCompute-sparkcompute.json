@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "spec-version": "1.1"
+  },
+  "configuration-groups": [
+    {
+      "label": "Feature Selection Configuration",
+      "properties": [
+        {
+          "widget-type": "csv",
+          "label": "Parallel Threads",
+          "name": "parallelThreads",
+          "widget-attributes": {
+            "delimiter": ",",
+            "value-placeholder": "Parallel Threads"
+          },
+          "plugin-function": {
+            "method": "POST",
+            "widget": "outputSchema",
+            "output-property": "schema",
+            "plugin-method": "outputSchema",
+            "required-fields": [],
+            "missing-required-fields-message": "'Variance thresholds are required."
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": []
+}

@@ -1,0 +1,56 @@
+{
+  "metadata": {
+    "spec-version": "1.1",
+    "label": "Row Transform"
+  },
+  "configuration-groups": [
+    {
+      "label": "General",
+      "properties": [
+        {
+          "widget-type": "csv",
+          "label": "Categorical Features",
+          "name": "categoricalColumnsToBeChecked",
+          "widget-attributes": {
+            "delimiter": ",",
+            "value-placeholder": "Categorical Columns"
+          },
+          "plugin-function": {
+            "method": "POST",
+            "widget": "outputSchema",
+            "output-property": "schema",
+            "plugin-method": "outputSchema",
+            "required-fields": ["primitives"],
+            "missing-required-fields-message": "'Transform Functions' properties are required to fetch schema."
+          }
+        },
+        {
+          "widget-type": "function-dropdown-with-alias",
+          "label": "Transformations",
+          "name": "primitives",
+          "widget-attributes": {
+            "placeholders": {
+              "field": "field",
+              "alias": "alias"
+            },
+            "dropdownOptions": [
+              "Day",
+              "Year",
+              "Month",
+              "WeekDay",
+              "NumWords",
+              "NumCharacters",
+              "PlusOneLog"
+            ]
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Number of Partitions",
+          "name": "numPartitions"
+        }
+      ]
+    }
+  ],
+  "outputs": []
+}

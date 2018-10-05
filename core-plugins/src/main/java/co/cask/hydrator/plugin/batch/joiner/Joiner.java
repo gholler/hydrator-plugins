@@ -215,12 +215,28 @@ public class Joiner extends BatchJoiner<StructuredRecord, StructuredRecord, Stru
         }
 
         String outputFieldName = selectedFields.get(inputFieldName);
-        outRecordBuilder.set(outputFieldName, record.get(inputFieldName));
+        outRecordBuilder.set(outputFieldName, convertNANToZero(record.get(inputFieldName)));
       }
     }
     return outRecordBuilder.build();
   }
 
+	private Object convertNANToZero(Object value) {
+		try {
+			if (Double.isNaN((double) value)) {
+				return 0.0;
+			}
+		} catch (Throwable e) {
+			try {
+				if (Float.isNaN((float) value)) {
+					return 0.0;
+				}
+			} catch (Throwable th) {
+			}
+		}
+		return value;
+	}
+	
   void init(Map<String, Schema> inputSchemas) {
     validateJoinKeySchemas(inputSchemas, conf.getPerStageJoinKeys());
     requiredInputs = conf.getInputs();

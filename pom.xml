@@ -39,6 +39,7 @@
     <module>solrsearch-plugins</module>
     <module>spark-plugins</module>
     <module>transform-plugins</module>
+    <module>feature-engineering-plugin</module>
     <module>wrangler-transform</module>
     <module>condition-plugins</module>
   </modules>

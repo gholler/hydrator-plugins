@@ -106,7 +106,7 @@ public class DatabasePluginTestBase extends HydratorTestBase {
                       DataDrivenETLDBInputFormat.class, DBRecord.class, QueryAction.class, DBAction.class);
 
     // add hypersql 3rd party plugin
-    PluginClass hypersql = new PluginClass("jdbc", "hypersql", "hypersql jdbc driver", JDBCDriver.class.getName(),
+    PluginClass hypersql = new PluginClass("jdbc", "hypersql", "hypersql jdbc driver", null, null, null, JDBCDriver.class.getName(),
                                            null, Collections.<String, PluginPropertyField>emptyMap());
     addPluginArtifact(NamespaceId.DEFAULT.artifact("hsql-jdbc", "1.0.0"),
                       DATAPIPELINE_ARTIFACT_ID,

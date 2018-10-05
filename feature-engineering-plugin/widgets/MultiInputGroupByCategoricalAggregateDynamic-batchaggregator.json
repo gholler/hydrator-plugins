@@ -1,0 +1,55 @@
+{
+  "metadata": {
+    "spec-version": "1.1",
+    "label": "Group by Aggregator"
+  },
+  "configuration-groups": [
+    {
+      "label": "General",
+      "properties": [
+        {
+          "widget-type": "csv",
+          "label": "Group by fields",
+          "name": "groupByFields",
+          "widget-attributes": {
+            "delimiter": ",",
+            "value-placeholder": "Group By Fields"
+          },
+          "plugin-function": {
+            "method": "POST",
+            "widget": "outputSchema",
+            "output-property": "schema",
+            "plugin-method": "outputSchema",
+            "required-fields": ["groupByFields", "aggregates"],
+            "missing-required-fields-message": "'Group By Fields' & 'Aggregates' properties are required to fetch schema."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Custom Delimiter",
+          "name": "delimiter"
+        },
+        {
+          "widget-type": "function-dropdown-with-alias",
+          "label": "Aggregates",
+          "name": "aggregates",
+          "widget-attributes": {
+            "placeholders": {
+              "field": "multi input field",
+              "alias": "alias"
+            },
+            "dropdownOptions": [
+              "CatCrossProduct"
+            ]
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Number of Partitions",
+          "name": "numPartitions"
+        }
+      ]
+    }
+  ],
+  "outputs": []
+}
