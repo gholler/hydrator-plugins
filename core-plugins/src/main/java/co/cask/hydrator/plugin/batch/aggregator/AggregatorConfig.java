@@ -16,10 +16,10 @@
 
 package co.cask.hydrator.plugin.batch.aggregator;
 
+import javax.annotation.Nullable;
+
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.plugin.PluginConfig;
-
-import javax.annotation.Nullable;
 
 /**
  * Base aggregator config, since almost all aggregators should support setting the number of partitions.
@@ -28,5 +28,10 @@ public class AggregatorConfig extends PluginConfig {
   @Nullable
   @Description("Number of partitions to use when aggregating. If not specified, the execution framework " +
     "will decide how many to use.")
-  protected Integer numPartitions;
+  public Integer numPartitions;
+  
+  @Nullable
+  @Description("Flag to set if schema is static or dynamic.")
+  public Boolean isDynamicSchema = false;
+
 }

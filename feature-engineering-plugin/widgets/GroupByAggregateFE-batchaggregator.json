@@ -25,6 +25,13 @@
           }
         },
         {
+          "widget-type": "hidden",
+          "name": "categoricalDictionary",
+          "widget-attributes": {
+            "default": "default"
+          }
+        },
+        {
           "widget-type": "function-dropdown-with-alias",
           "label": "Aggregates",
           "name": "aggregates",

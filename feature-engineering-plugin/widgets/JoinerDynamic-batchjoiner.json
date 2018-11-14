@@ -29,15 +29,6 @@
         },
         {
           "widget-type": "csv",
-          "label": "Categorical Field Dictionary",
-          "name": "categoricalColumnsToBeChecked",
-          "widget-attributes": {
-            "delimiter": ",",
-            "value-placeholder": "Categorical Columns"
-          }
-        },
-        {
-          "widget-type": "csv",
           "label": "Keys to be Appended",
           "name": "keysToBeAppended",
           "widget-attributes": {

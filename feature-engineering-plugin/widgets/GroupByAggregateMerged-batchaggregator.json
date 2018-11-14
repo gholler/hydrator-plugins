@@ -1,7 +1,7 @@
 {
   "metadata": {
     "spec-version": "1.1",
-    "label": "Group by Categorical Aggregator"
+    "label": "Group by Aggregator"
   },
   "configuration-groups": [
     {
@@ -13,15 +13,15 @@
           "name": "groupByFields",
           "widget-attributes": {
             "delimiter": ",",
-            "value-placeholder": "Field Name"
+            "value-placeholder": "Group By Fields"
           },
           "plugin-function": {
             "method": "POST",
             "widget": "outputSchema",
             "output-property": "schema",
             "plugin-method": "outputSchema",
-            "required-fields": ["groupByFields", "categoricalDictionary", "aggregates"],
-            "missing-required-fields-message": "'Group By Fields', 'categoricalDictionary' & 'Aggregates' properties are required to fetch schema."
+            "required-fields": ["groupByFields", "aggregates"],
+            "missing-required-fields-message": "'Group By Fields' & 'Aggregates' properties are required to fetch schema."
           }
         },
         {
@@ -31,11 +31,11 @@
         },
         {
           "widget-type": "csv",
-          "label": "Categorical Field Dictionary",
+          "label": "Categorical Column Dictionary",
           "name": "categoricalDictionary",
           "widget-attributes": {
             "delimiter": ",",
-            "value-placeholder": "Field Name Two"
+            "value-placeholder": "Categorical Columns Values"
           }
         },
         {
@@ -44,13 +44,23 @@
           "name": "aggregates",
           "widget-attributes": {
             "placeholders": {
-              "field": "field",
+              "field": "multi input field",
               "alias": "alias"
             },
             "dropdownOptions": [
-              "ValueCount",
-              "IndicatorCount",
-              "CatCrossProduct"
+              "CatCrossProduct",
+               "Avg",
+              "Count",
+              "First",
+              "Last",
+              "Max",
+              "Min",
+              "Stddev",
+              "Sum",
+              "Variance",
+              "NUniq",
+               "ValueCount",
+              "IndicatorCount"
             ]
           }
         },

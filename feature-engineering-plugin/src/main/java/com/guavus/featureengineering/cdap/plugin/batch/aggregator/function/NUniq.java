@@ -20,6 +20,7 @@ import java.util.Set;
 
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
+import co.cask.hydrator.plugin.batch.aggregator.function.AggregateFunction;
 
 /**
  * @author bhupesh.goel

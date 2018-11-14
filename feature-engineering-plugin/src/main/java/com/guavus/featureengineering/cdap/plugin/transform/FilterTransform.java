@@ -18,6 +18,7 @@ package com.guavus.featureengineering.cdap.plugin.transform;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.guavus.featureengineering.cdap.plugin.transform.config.FilterTransformConfig;
 import com.guavus.featureengineering.cdap.plugin.transform.function.FilterFunction;
 
 import co.cask.cdap.api.annotation.Description;

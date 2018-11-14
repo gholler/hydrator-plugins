@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016 Cask Data, Inc.
+ * Copyright © 2018 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.guavus.featureengineering.cdap.plugin.transform;
+package com.guavus.featureengineering.cdap.plugin.transform.config;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -22,28 +22,25 @@ import java.util.Objects;
 import java.util.Set;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
+import com.guavus.featureengineering.cdap.plugin.transform.function.TransformFunction;
 
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.data.schema.Schema;
-import co.cask.cdap.api.plugin.PluginConfig;
-import com.guavus.featureengineering.cdap.plugin.transform.function.TimeDiffInMin;
-import com.guavus.featureengineering.cdap.plugin.transform.function.TransformFunction;
+import co.cask.hydrator.plugin.transform.TransformConfig;
 
 /**
  * @author bhupesh.goel
  *
  */
-public class MultiInputRowTransformConfig extends PluginConfig {
+public abstract class RowTransformConfigBase extends TransformConfig {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 4077946383526119822L;
 
-	@Description("Transform function to compute on given records. "
-			+ "Supported functions are Time Difference. "
+	@Description("Transform function to compute on given records. " + "Supported functions are Time Difference. "
 			+ "A function must specify all the field it should be applied on, as well as the name it should be called. "
 			+ "Transforms are specified using syntax: \"name:function(field1 field2...)[, other functions]\"."
 			+ "For example, 'timeDiff(timestamp1 timestamp2)' will calculate transforms. "
@@ -51,19 +48,22 @@ public class MultiInputRowTransformConfig extends PluginConfig {
 	private final String primitives;
 
 	@VisibleForTesting
-	MultiInputRowTransformConfig(String primitives) {
+	protected
+	RowTransformConfigBase(String primitives) {
+		super();
 		this.primitives = primitives;
 	}
 
 	/**
 	 * 
 	 */
-	public MultiInputRowTransformConfig() {
+	public RowTransformConfigBase() {
+		super();
 		this.primitives = "";
 	}
 
-	List<MultiFieldFunctionInfo> getPrimitives() {
-		List<MultiFieldFunctionInfo> functionInfos = new ArrayList<>();
+	public List<FunctionInfo> getPrimitives() {
+		List<FunctionInfo> functionInfos = new ArrayList<>();
 		Set<String> primitivesNames = new HashSet<>();
 		for (String primitive : Splitter.on(',').trimResults().split(primitives)) {
 			int colonIdx = primitive.indexOf(':');
@@ -85,26 +85,20 @@ public class MultiInputRowTransformConfig extends PluginConfig {
 						functionAndField));
 			}
 			String functionStr = functionAndField.substring(0, leftParanIdx).trim();
-			Function function;
-			try {
-				function = Function.valueOf(functionStr.toUpperCase());
-			} catch (IllegalArgumentException e) {
-				throw new IllegalArgumentException(String.format("Invalid function '%s'. Must be one of %s.",
-						functionStr, Joiner.on(',').join(Function.values())));
-			}
-
+			
 			if (!functionAndField.endsWith(")")) {
 				throw new IllegalArgumentException(String.format(
 						"Could not find closing ')' in function '%s'. Functions must be specified as function(field).",
 						functionAndField));
 			}
-			String[] fields = functionAndField.substring(leftParanIdx + 1, functionAndField.length() - 1).trim().split("\\s+");
-			if (fields.length==0) {
+			String[] fields = functionAndField.substring(leftParanIdx + 1, functionAndField.length() - 1).trim()
+					.split("\\s+");
+			if (fields.length == 0) {
 				throw new IllegalArgumentException(String
 						.format("Invalid function '%s'. A field must be given as an argument.", functionAndField));
 			}
-
-			functionInfos.add(new MultiFieldFunctionInfo(name, fields, function));
+			String functionName = getValidTransformFunctionName(functionStr);
+			functionInfos.add(createFunctionInfoInstance(name, fields, functionName));
 		}
 
 		if (functionInfos.isEmpty()) {
@@ -113,15 +107,20 @@ public class MultiInputRowTransformConfig extends PluginConfig {
 		return functionInfos;
 	}
 
+	protected abstract String getValidTransformFunctionName(final String functionName);
+
+	protected abstract FunctionInfo createFunctionInfoInstance(final String name, final String[] field,
+			final String functionName);
+
 	/**
 	 * Class to hold information for an primitive function.
 	 */
-	static class MultiFieldFunctionInfo {
-		private final String name;
-		private final String[] field;
-		private final Function function;
+	public abstract static class FunctionInfo {
+		protected final String name;
+		protected final String[] field;
+		protected final String function;
 
-		MultiFieldFunctionInfo(String name, String[] field, Function function) {
+		FunctionInfo(String name, String[] field, String function) {
 			this.name = name;
 			this.field = field;
 			this.function = function;
@@ -135,18 +134,11 @@ public class MultiInputRowTransformConfig extends PluginConfig {
 			return field;
 		}
 
-		public Function getFunction() {
+		public String getFunction() {
 			return function;
 		}
 
-		public TransformFunction getTransformFunction(Schema[] fieldSchemas) {
-			switch (function) {
-			case TIMEDIFFINMIN:
-				return new TimeDiffInMin(field, fieldSchemas);
-			}
-			// should never happen
-			throw new IllegalStateException("Unknown function type " + function);
-		}
+		public abstract TransformFunction getTransformFunction(Schema[] fieldSchemas);
 
 		@Override
 		public boolean equals(Object o) {
@@ -157,7 +149,7 @@ public class MultiInputRowTransformConfig extends PluginConfig {
 				return false;
 			}
 
-			MultiFieldFunctionInfo that = (MultiFieldFunctionInfo) o;
+			FunctionInfo that = (FunctionInfo) o;
 
 			return Objects.equals(name, that.name) && Objects.equals(field, that.field)
 					&& Objects.equals(function, that.function);
@@ -175,7 +167,4 @@ public class MultiInputRowTransformConfig extends PluginConfig {
 		}
 	}
 
-	enum Function {
-		TIMEDIFFINMIN
-	}
 }

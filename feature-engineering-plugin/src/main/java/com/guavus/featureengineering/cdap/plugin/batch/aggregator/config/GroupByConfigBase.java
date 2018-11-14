@@ -14,42 +14,42 @@
  * the License.
  */
 
-package com.guavus.featureengineering.cdap.plugin.batch.aggregator;
+package com.guavus.featureengineering.cdap.plugin.batch.aggregator.config;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import javax.annotation.Nullable;
+
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
-import com.guavus.featureengineering.cdap.plugin.batch.aggregator.function.AggregateFunction;
-import com.guavus.featureengineering.cdap.plugin.batch.aggregator.function.CatCrossProduct;
 
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.data.schema.Schema;
+import co.cask.hydrator.plugin.batch.aggregator.AggregatorConfig;
+import co.cask.hydrator.plugin.batch.aggregator.function.AggregateFunction;
 
 /**
  * Config for group by types of plugins.
  */
-public class MultiInputGroupByCategoricalConfig extends AggregatorConfig {
+public abstract class GroupByConfigBase extends AggregatorConfig {
 
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = 3137515134995026694L;
+	private static final long serialVersionUID = 8472132896718615189L;
 
-	@Description("Multi-column Aggregates to compute on grouped records. "
-			+ "Supported aggregate functions are catcrossproduct. "
+	@Description("Aggregates to compute on grouped records. "
+			+ "Supported aggregate functions are count, count(*), sum, avg, min, max, first, last. "
 			+ "A function must specify the field it should be applied on, as well as the name it should be called. "
-			+ "Aggregates are specified using syntax: \"name:function(field1 field2...)[, other aggregates]\"."
-			+ "For example, 'crossproduct:catcrossproduct(col1 col2)' will calculate one aggregate. "
-			+ "The first will create a field called 'crossproduct' that will take cross product of fields in the group. ")
+			+ "Aggregates are specified using syntax: \"name:function(field)[, other aggregates]\"."
+			+ "For example, 'avgPrice:avg(price),cheapest:min(price)' will calculate two aggregates. "
+			+ "The first will create a field called 'avgPrice' that is the average of all 'price' fields in the group. "
+			+ "The second will create a field called 'cheapest' that contains the minimum 'price' field in the group")
 	private final String aggregates;
 
 	@Description("Comma separated list of record fields to group by. "
@@ -59,22 +59,24 @@ public class MultiInputGroupByCategoricalConfig extends AggregatorConfig {
 			+ "output records will have a 'user' field and 'numActions' field.")
 	private final String groupByFields;
 
-	private final String categoricalDictionary;
-
-	public MultiInputGroupByCategoricalConfig() {
+	@Description("Place to specify all possible values for categorical columns.")
+	@Nullable
+	protected final String categoricalDictionary;
+	
+	public GroupByConfigBase() {
 		this.groupByFields = "";
 		this.aggregates = "";
 		this.categoricalDictionary = "";
 	}
 
 	@VisibleForTesting
-	MultiInputGroupByCategoricalConfig(String groupByFields, String aggregates, String categoricalDictionary) {
+	GroupByConfigBase(String groupByFields, String aggregates, String categoricalDictionary) {
 		this.groupByFields = groupByFields;
 		this.aggregates = aggregates;
 		this.categoricalDictionary = categoricalDictionary;
 	}
 
-	List<String> getGroupByFields() {
+	public List<String> getGroupByFields() {
 		List<String> fields = new ArrayList<>();
 		for (String field : Splitter.on(',').trimResults().split(groupByFields)) {
 			fields.add(field);
@@ -85,24 +87,7 @@ public class MultiInputGroupByCategoricalConfig extends AggregatorConfig {
 		return fields;
 	}
 
-	/**
-	 * @return the categoricalDictionary
-	 */
-	public Map<String, List<String>> getCategoricalDictionaryMap() {
-		Map<String, List<String>> categoricalDictionaryMap = new HashMap<>();
-		for (String field : Splitter.on(',').trimResults().split(categoricalDictionary)) {
-			String tokens[] = field.split(":");
-			List<String> categoricalDictionaryFields = new ArrayList<String>();
-			categoricalDictionaryFields = Arrays.asList(tokens[1].trim().split(";"));
-			categoricalDictionaryMap.put(tokens[0].trim().toLowerCase(), categoricalDictionaryFields);
-		}
-		if (categoricalDictionaryMap.isEmpty()) {
-			throw new IllegalArgumentException("The 'categoricalDictionary' property must be set.");
-		}
-		return categoricalDictionaryMap;
-	}
-
-	List<FunctionInfo> getAggregates() {
+	public List<FunctionInfo> getAggregates() {
 		List<FunctionInfo> functionInfos = new ArrayList<>();
 		Set<String> aggregateNames = new HashSet<>();
 		for (String aggregate : Splitter.on(',').trimResults().split(aggregates)) {
@@ -125,13 +110,6 @@ public class MultiInputGroupByCategoricalConfig extends AggregatorConfig {
 						functionAndField));
 			}
 			String functionStr = functionAndField.substring(0, leftParanIdx).trim();
-			Function function;
-			try {
-				function = Function.valueOf(functionStr.toUpperCase());
-			} catch (IllegalArgumentException e) {
-				throw new IllegalArgumentException(String.format("Invalid function '%s'. Must be one of %s.",
-						functionStr, Joiner.on(',').join(Function.values())));
-			}
 
 			if (!functionAndField.endsWith(")")) {
 				throw new IllegalArgumentException(String.format(
@@ -144,8 +122,8 @@ public class MultiInputGroupByCategoricalConfig extends AggregatorConfig {
 				throw new IllegalArgumentException(String
 						.format("Invalid function '%s'. A field must be given as an argument.", functionAndField));
 			}
-
-			functionInfos.add(new FunctionInfo(name, field, function));
+			String functionName = getValidAggregateFunctionName(functionStr);
+			functionInfos.add(createFunctionInfoInstance(name, field, functionName));
 		}
 
 		if (functionInfos.isEmpty()) {
@@ -153,16 +131,22 @@ public class MultiInputGroupByCategoricalConfig extends AggregatorConfig {
 		}
 		return functionInfos;
 	}
+	
+	protected abstract String getValidAggregateFunctionName(final String functionName);
+	
+	protected abstract FunctionInfo createFunctionInfoInstance(final String name, final String[] field, final String functionName);
 
+	public abstract Map<String, List<String>> getCategoricalDictionaryMap();
+	
 	/**
 	 * Class to hold information for an aggregate function.
 	 */
-	static class FunctionInfo {
-		private final String name;
-		private final String[] field;
-		private final Function function;
+	public abstract static class FunctionInfo {
+		protected final String name;
+		protected final String[] field;
+		protected final String function;
 
-		FunctionInfo(String name, String[] field, Function function) {
+		FunctionInfo(String name, String[] field, String function) {
 			this.name = name;
 			this.field = field;
 			this.function = function;
@@ -176,18 +160,11 @@ public class MultiInputGroupByCategoricalConfig extends AggregatorConfig {
 			return field;
 		}
 
-		public Function getFunction() {
+		public String getFunction() {
 			return function;
 		}
 
-		public AggregateFunction getAggregateFunction(Schema[] fieldSchema) {
-			switch (function) {
-			case CATCROSSPRODUCT:
-				return new CatCrossProduct(field, fieldSchema);
-			}
-			// should never happen
-			throw new IllegalStateException("Unknown function type " + function);
-		}
+		public abstract AggregateFunction getAggregateFunction(Schema[] fieldSchema);
 
 		@Override
 		public boolean equals(Object o) {
@@ -216,7 +193,4 @@ public class MultiInputGroupByCategoricalConfig extends AggregatorConfig {
 		}
 	}
 
-	enum Function {
-		CATCROSSPRODUCT
-	}
 }

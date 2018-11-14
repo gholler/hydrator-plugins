@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.guavus.featureengineering.cdap.plugin.transform;
+package com.guavus.featureengineering.cdap.plugin.transform.config;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -63,7 +63,7 @@ public class FilterTransformConfig extends PluginConfig {
 		this.filters = "";
 	}
 
-	List<FilterInfo> getFilters() {
+	public List<FilterInfo> getFilters() {
 		List<FilterInfo> functionInfos = new ArrayList<>();
 		for (String filter : Splitter.on(',').trimResults().split(filters)) {
 			int colonIdx = filter.indexOf(':');
@@ -112,7 +112,7 @@ public class FilterTransformConfig extends PluginConfig {
 	/**
 	 * Class to hold information for an primitive function.
 	 */
-	static class FilterInfo {
+	public static class FilterInfo {
 		private final String value;
 		private final String field;
 		private final Function function;
