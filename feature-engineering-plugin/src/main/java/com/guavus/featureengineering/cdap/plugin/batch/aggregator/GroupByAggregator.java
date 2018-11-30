@@ -37,8 +37,8 @@ import co.cask.cdap.etl.api.batch.BatchAggregator;
 @Description("Groups by one or more fields, then performs one or more aggregate functions on each group. " +
   "Supports avg, count, count(*), first, last, max, min, and sum as aggregate functions.")
 @PluginInput(type = { "long:int:double:float", "*", "*", "*", "*", "*", "long:int:double:float",
-		"long:int:double:float:boolean", "long:int:double:float", "string:int:long" })
-@PluginOutput(type = { "double", "long", "same", "same", "same", "same", "double", "long:int:double:float:int",
+		"long:int:double:float", "long:int:double:float", "string:int:long" })
+@PluginOutput(type = { "double", "long", "same", "same", "same", "same", "double", "long:int:double:float",
 		"double", "int" })
 @PluginFunction(function = { "avg", "count", "first", "last", "min", "max", "stddev", "sum", "variance", "nuniq" })
 public class GroupByAggregator extends GroupByAggregatorBase {

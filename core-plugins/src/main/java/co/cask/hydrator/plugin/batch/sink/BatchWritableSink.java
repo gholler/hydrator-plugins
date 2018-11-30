@@ -81,6 +81,9 @@ public abstract class BatchWritableSink<IN, KEY_OUT, VAL_OUT> extends BatchSink<
       context.createDataset(properties.get(Properties.BatchReadableWritable.NAME),
                             properties.get(Properties.BatchReadableWritable.TYPE),
                             DatasetProperties.builder().addAll(properties).build());
+    } else {
+    	// This will be needed in case we want to clear existing dataset before writing it again. 
+    	//context.discardDataset(context.getDataset(properties.get(Properties.BatchReadableWritable.NAME)));
     }
     context.addOutput(Output.ofDataset(properties.get(Properties.BatchReadableWritable.NAME)));
   }

@@ -34,7 +34,7 @@ import co.cask.cdap.api.data.schema.Schema;
 @Plugin(type = "transform")
 @Name("RowTransform")
 @Description("Executes transform primitives to add new columns in record.")
-@PluginInput(type = { "string", "string", "string", "string", "string", "string", "double:int:long:float", "string string" })
+@PluginInput(type = { "datetime", "datetime", "datetime", "datetime", "string", "string", "double:int:long:float", "string string" })
 @PluginOutput(type = { "int", "int", "int", "int", "int", "int", "double", "int" })
 @PluginFunction(function = { "day", "year", "month", "weekday", "numwords", "numcharacters", "plusonelog", "timediffinmin" })
 public class RowTransform extends RowTransformBase {
