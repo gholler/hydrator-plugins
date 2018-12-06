@@ -19,11 +19,13 @@ package com.guavus.featureengineering.cdap.plugin.transform;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
+import javax.annotation.Nullable;
 import javax.ws.rs.Path;
 
 import org.apache.spark.api.java.JavaRDD;
@@ -74,7 +76,6 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 	 */
 	public static final String NAME = "StatsComputeInMemory";
 	private final Conf config;
-	private int numberOfThreads;
 	private static final double percentiles[] = { 0.25, 0.5, 0.75 };
 
 	/**
@@ -83,30 +84,18 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 	@VisibleForTesting
 	public static class Conf extends PluginConfig {
 
-		@Description("The field from the input records containing the words to count.")
-		private String parallelThreads;
-
-		Conf(String parallelThreads) {
-			this.parallelThreads = parallelThreads;
-		}
-
+		@Nullable
+		@Description("Dummy Field.")
+		private String dummy;
+		
 		Conf() {
-			this.parallelThreads = "";
+			this.dummy = "";
 		}
-
-		int getParallelThreads() {
-			Iterable<String> parallelTh = Splitter.on(',').trimResults().split(parallelThreads);
-			try {
-				return Integer.parseInt(parallelTh.iterator().next());
-			} catch (Exception e) {
-				return 10;
-			}
-		}
+		
 	}
 
 	@Override
 	public void initialize(SparkExecutionPluginContext context) throws Exception {
-		this.numberOfThreads = config.getParallelThreads();
 	}
 
 	/**
@@ -114,28 +103,6 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 	 */
 	public static class GetSchemaRequest extends Conf {
 		private Schema inputSchema;
-	}
-
-	private static class Identity<T> implements Function<T, T> {
-		@Override
-		public T call(T t) throws Exception {
-			return t;
-		}
-	}
-
-	private static class CountFunction implements PairFlatMapFunction<Tuple2<String, Iterable<String>>, String, Long> {
-
-		@Override
-		public Iterable<Tuple2<String, Long>> call(Tuple2<String, Iterable<String>> tuples) throws Exception {
-			String word = tuples._1();
-			Long count = 0L;
-			for (String s : tuples._2()) {
-				count++;
-			}
-			List<Tuple2<String, Long>> output = new ArrayList<>();
-			output.add(new Tuple2<>(word, count));
-			return output;
-		}
 	}
 
 	public StatsComputeInMemory(Conf config) {
@@ -149,18 +116,7 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 
 	@Path("outputSchema")
 	public Schema getOutputSchema(GetSchemaRequest request) {
-		return getOutputSchema(request.inputSchema);
-	}
-
-	private Schema getOutputSchema(Schema inputSchema) {
-		List<Schema.Field> outputFields = new ArrayList<>();
-		outputFields.add(Schema.Field.of("Statistic", Schema.of(Schema.Type.STRING)));
-		for (Schema.Field field : inputSchema.getFields()) {
-
-			outputFields.add(Schema.Field.of(field.getName(), Schema.nullableOf(Schema.of(Schema.Type.DOUBLE))));
-
-		}
-		return Schema.recordOf(inputSchema.getRecordName() + ".statsDyn", outputFields);
+		return getVerticalFeaturesOutputSchema(request.inputSchema);
 	}
 
 	private Schema getVerticalFeaturesOutputSchema(Schema inputSchema) {
@@ -230,9 +186,6 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 	@Override
 	public JavaRDD<StructuredRecord> transform(final SparkExecutionPluginContext sparkExecutionPluginContext,
 			JavaRDD<StructuredRecord> javaRDD) throws Exception {
-		// final List<Schema.Field> inputField =
-		// sparkExecutionPluginContext.getInputSchema().getFields();
-		// Schema outputSchema = sparkExecutionPluginContext.getOutputSchema();
 		long size = javaRDD.count();
 		if (size == 0)
 			return sparkExecutionPluginContext.getSparkContext().parallelize(new LinkedList<StructuredRecord>());
@@ -243,7 +196,6 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 		}
 		Schema inputSchema = getInputSchema(javaRDD);
 		final List<Schema.Field> inputField = inputSchema.getFields();
-		Schema outputSchema = getOutputSchema(inputSchema);
 
 		JavaRDD<Vector> vectoredRDD = getVectorRDD(javaRDD, inputField);
 		MultivariateStatisticalSummary summary = Statistics.colStats(vectoredRDD.rdd());
@@ -257,54 +209,52 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 		List<List<Double>> percentileScores = getPercentileStatsRDD(doubleListRDD.collect(),
 				sparkExecutionPluginContext, summary.variance().toArray().length, size);
 		doubleListRDD.unpersist();
-		// List<StructuredRecord> recordList = createStructuredRecord(summary,
-		// stringStats, percentileScores, outputSchema, inputSchema);
 		List<StructuredRecord> recordList = createStructuredRecordWithVerticalSchema(summary, stringStats,
-				percentileScores, outputSchema, inputSchema, maxOccuringStringEntryList);
+				percentileScores, inputSchema, maxOccuringStringEntryList);
 		return sparkExecutionPluginContext.getSparkContext().parallelize(recordList);
 	}
 
 	private List<StructuredRecord> createStructuredRecordWithVerticalSchema(MultivariateStatisticalSummary summary,
-			List<List<Long>> stringStats, List<List<Double>> percentileScores, Schema outputSchema, Schema inputSchema,
+			List<List<Long>> stringStats, List<List<Double>> percentileScores, Schema inputSchema,
 			List<String> maxOccuringStringEntryList) {
 		List<StructuredRecord.Builder> builderList = new LinkedList<StructuredRecord.Builder>();
 		Schema verticalSchema = getVerticalFeaturesOutputSchema(inputSchema);
 		for (Schema.Field field : inputSchema.getFields()) {
 			builderList.add(StructuredRecord.builder(verticalSchema));
 		}
-		addFeatureNameRecord(inputSchema, outputSchema, builderList);
-		addNumericStatsVertically(inputSchema, outputSchema, summary.variance().toArray(),
+		addFeatureNameRecord(inputSchema, builderList);
+		addNumericStatsVertically(inputSchema, summary.variance().toArray(),
 				FeatureSTATS.Variance.getName(), builderList);
-		addNumericStatsVertically(inputSchema, outputSchema, summary.max().toArray(), FeatureSTATS.Max.getName(),
+		addNumericStatsVertically(inputSchema, summary.max().toArray(), FeatureSTATS.Max.getName(),
 				builderList);
-		addNumericStatsVertically(inputSchema, outputSchema, summary.min().toArray(), FeatureSTATS.Min.getName(),
+		addNumericStatsVertically(inputSchema, summary.min().toArray(), FeatureSTATS.Min.getName(),
 				builderList);
-		addNumericStatsVertically(inputSchema, outputSchema, summary.mean().toArray(), FeatureSTATS.Mean.getName(),
+		addNumericStatsVertically(inputSchema, summary.mean().toArray(), FeatureSTATS.Mean.getName(),
 				builderList);
-		addNumericStatsVertically(inputSchema, outputSchema, summary.numNonzeros().toArray(),
+		addNumericStatsVertically(inputSchema, summary.numNonzeros().toArray(),
 				FeatureSTATS.NumOfNonZeros.getName(), builderList);
-		addNumericStatsVertically(inputSchema, outputSchema, summary.normL1().toArray(), FeatureSTATS.NormL1.getName(),
+		addNumericStatsVertically(inputSchema, summary.normL1().toArray(), FeatureSTATS.NormL1.getName(),
 				builderList);
-		addNumericStatsVertically(inputSchema, outputSchema, summary.normL2().toArray(), FeatureSTATS.NormL2.getName(),
+		addNumericStatsVertically(inputSchema, summary.normL2().toArray(), FeatureSTATS.NormL2.getName(),
 				builderList);
-		addNumericStatsVertically(inputSchema, outputSchema, convertToPrimitiveDoubleArray(percentileScores.get(0)),
+		addNumericStatsVertically(inputSchema, convertToPrimitiveDoubleArray(percentileScores.get(0)),
 				FeatureSTATS.TwentyFivePercentile.getName(), builderList);
-		addNumericStatsVertically(inputSchema, outputSchema, convertToPrimitiveDoubleArray(percentileScores.get(1)),
+		addNumericStatsVertically(inputSchema, convertToPrimitiveDoubleArray(percentileScores.get(1)),
 				FeatureSTATS.FiftyPercentile.getName(), builderList);
-		addNumericStatsVertically(inputSchema, outputSchema, convertToPrimitiveDoubleArray(percentileScores.get(2)),
+		addNumericStatsVertically(inputSchema, convertToPrimitiveDoubleArray(percentileScores.get(2)),
 				FeatureSTATS.SeventyFivePercentile.getName(), builderList);
-		addInterQuartilePercentile(inputSchema, outputSchema, convertToPrimitiveDoubleArray(percentileScores.get(0)),
+		addInterQuartilePercentile(inputSchema, convertToPrimitiveDoubleArray(percentileScores.get(0)),
 				convertToPrimitiveDoubleArray(percentileScores.get(2)), FeatureSTATS.InterQuartilePercentile.getName(),
 				builderList);
-		addStringStatsVertically(inputSchema, outputSchema, stringStats.get(0), FeatureSTATS.TotalCount.getName(),
+		addStringStatsVertically(inputSchema, stringStats.get(0), FeatureSTATS.TotalCount.getName(),
 				builderList);
-		addStringStatsVertically(inputSchema, outputSchema, stringStats.get(1), FeatureSTATS.UniqueCount.getName(),
+		addStringStatsVertically(inputSchema, stringStats.get(1), FeatureSTATS.UniqueCount.getName(),
 				builderList);
-		addStringStatsVertically(inputSchema, outputSchema, stringStats.get(2),
+		addStringStatsVertically(inputSchema, stringStats.get(2),
 				FeatureSTATS.LeastFrequentWordCount.getName(), builderList);
-		addStringStatsVertically(inputSchema, outputSchema, stringStats.get(3),
+		addStringStatsVertically(inputSchema, stringStats.get(3),
 				FeatureSTATS.MostFrequentWordCount.getName(), builderList);
-		addMaxOccuringWordVertically(inputSchema, outputSchema, maxOccuringStringEntryList,
+		addMaxOccuringWordVertically(inputSchema, maxOccuringStringEntryList,
 				FeatureSTATS.MostFrequentEntry.getName(), builderList);
 		List<StructuredRecord> recordList = new LinkedList<>();
 		for (Builder builder : builderList) {
@@ -313,63 +263,13 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 		return recordList;
 	}
 
-	private void addFeatureNameRecord(Schema inputSchema, Schema outputSchema, List<Builder> builderList) {
+	private void addFeatureNameRecord(Schema inputSchema, List<Builder> builderList) {
 		int index = 0;
 		for (Schema.Field field : inputSchema.getFields()) {
 			Builder builder = builderList.get(index++);
 			builder.set(FeatureSTATS.Feature.getName(), field.getName());
 			builder.set("Id", (long)index);
 		}
-	}
-
-	private List<StructuredRecord> createStructuredRecord(MultivariateStatisticalSummary summary,
-			List<List<Long>> stringStats, List<List<Double>> percentileScores, Schema outputSchema,
-			Schema inputSchema) {
-		List<StructuredRecord> recordList = new LinkedList<StructuredRecord>();
-
-		StructuredRecord record = addNumericStat(inputSchema, outputSchema, summary.variance().toArray(), "Variance");
-		recordList.add(record);
-
-		record = addNumericStat(inputSchema, outputSchema, summary.max().toArray(), "max");
-		recordList.add(record);
-
-		record = addNumericStat(inputSchema, outputSchema, summary.min().toArray(), "Min");
-		recordList.add(record);
-
-		record = addNumericStat(inputSchema, outputSchema, summary.mean().toArray(), "Mean");
-		recordList.add(record);
-
-		record = addNumericStat(inputSchema, outputSchema, summary.numNonzeros().toArray(), "NumOfNonZeros");
-		recordList.add(record);
-
-		record = addNumericStat(inputSchema, outputSchema, summary.normL1().toArray(), "NormL1");
-		recordList.add(record);
-
-		record = addNumericStat(inputSchema, outputSchema, summary.normL2().toArray(), "NormL2");
-		recordList.add(record);
-
-		record = addNumericStat(inputSchema, outputSchema, convertToPrimitiveDoubleArray(percentileScores.get(0)),
-				"25 Percentile");
-		recordList.add(record);
-
-		record = addNumericStat(inputSchema, outputSchema, convertToPrimitiveDoubleArray(percentileScores.get(1)),
-				"50 Percentile");
-		recordList.add(record);
-
-		record = addNumericStat(inputSchema, outputSchema, convertToPrimitiveDoubleArray(percentileScores.get(2)),
-				"75 Percentile");
-		recordList.add(record);
-
-		record = addStringStat(inputSchema, outputSchema, stringStats.get(0), "TotalCount");
-		recordList.add(record);
-		record = addStringStat(inputSchema, outputSchema, stringStats.get(1), "UniqueCount");
-		recordList.add(record);
-		record = addStringStat(inputSchema, outputSchema, stringStats.get(2), "LeastFrequentWordCount");
-		recordList.add(record);
-		record = addStringStat(inputSchema, outputSchema, stringStats.get(3), "MostFrequentWordCount");
-		recordList.add(record);
-
-		return recordList;
 	}
 
 	private double[] convertToPrimitiveDoubleArray(List<Double> list) {
@@ -379,27 +279,6 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 			result[index++] = d;
 		}
 		return result;
-	}
-
-	private StructuredRecord addStringStat(Schema inputSchema, Schema outputSchema, List<Long> values,
-			String statName) {
-		StructuredRecord.Builder builder = StructuredRecord.builder(outputSchema);
-
-		int index = 0;
-		int valueIndex = 0;
-		List<Schema.Field> outputFields = outputSchema.getFields();
-		List<Schema.Field> inputFields = inputSchema.getFields();
-		builder.set(outputFields.get(index).getName(), statName);
-
-		for (index = 0; index < inputFields.size(); index++) {
-			Schema.Field field = inputFields.get(index);
-			if (!getSchemaType(field.getSchema()).equals(Schema.Type.STRING))
-				builder.set(outputFields.get(index + 1).getName(), null);
-			else
-				builder.set(outputFields.get(index + 1).getName(), (values.get(valueIndex++) * 1.0));
-		}
-
-		return builder.build();
 	}
 
 	private Schema.Type getSchemaType(Schema schema) {
@@ -416,7 +295,7 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 			return schema.getType();
 	}
 	
-	private void addStringStatsVertically(Schema inputSchema, Schema outputSchema, List<Long> values, String statName,
+	private void addStringStatsVertically(Schema inputSchema, List<Long> values, String statName,
 			List<Builder> builderList) {
 		int index = 0;
 		int valueIndex = 0;
@@ -432,7 +311,7 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 		}
 	}
 
-	private void addMaxOccuringWordVertically(Schema inputSchema, Schema outputSchema,
+	private void addMaxOccuringWordVertically(Schema inputSchema,
 			List<String> maxOccuringStringEntryList, String statName, List<Builder> builderList) {
 		int index = 0;
 		int valueIndex = 0;
@@ -448,26 +327,7 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 		}
 	}
 
-	private StructuredRecord addNumericStat(Schema inputSchema, Schema outputSchema, double[] values, String statName) {
-		StructuredRecord.Builder builder = StructuredRecord.builder(outputSchema);
-
-		int index = 0;
-		int valueIndex = 0;
-		List<Schema.Field> outputFields = outputSchema.getFields();
-		builder.set(outputFields.get(index++).getName(), statName);
-
-		for (Schema.Field field : inputSchema.getFields()) {
-			if (getSchemaType(field.getSchema()).equals(Schema.Type.STRING)) {
-				builder.set(outputFields.get(index++).getName(), null);
-				continue;
-			}
-			builder.set(outputFields.get(index++).getName(), values[valueIndex++]);
-		}
-
-		return builder.build();
-	}
-
-	private void addNumericStatsVertically(Schema inputSchema, Schema outputSchema, double[] values, String statName,
+	private void addNumericStatsVertically(Schema inputSchema, double[] values, String statName,
 			List<Builder> builderList) {
 		int index = 0;
 		int valueIndex = 0;
@@ -481,7 +341,7 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 		}
 	}
 
-	private void addInterQuartilePercentile(Schema inputSchema, Schema outputSchema, double[] value1, double[] value2,
+	private void addInterQuartilePercentile(Schema inputSchema, double[] value1, double[] value2,
 			String statName, List<Builder> builderList) {
 		int index = 0;
 		int valueIndex = 0;

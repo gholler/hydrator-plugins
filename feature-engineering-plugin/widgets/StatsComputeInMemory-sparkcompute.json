@@ -7,12 +7,10 @@
       "label": "Feature Selection Configuration",
       "properties": [
         {
-          "widget-type": "csv",
-          "label": "Parallel Threads",
-          "name": "parallelThreads",
+          "widget-type": "hidden",
+          "name": "dummy",
           "widget-attributes": {
-            "delimiter": ",",
-            "value-placeholder": "Parallel Threads"
+			"default": "default"
           },
           "plugin-function": {
             "method": "POST",

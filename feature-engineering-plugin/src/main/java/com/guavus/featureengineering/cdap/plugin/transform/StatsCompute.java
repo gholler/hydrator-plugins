@@ -19,6 +19,7 @@ package com.guavus.featureengineering.cdap.plugin.transform;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -38,8 +39,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
 
 import co.cask.cdap.api.annotation.Description;
-import co.cask.cdap.api.annotation.Name;
-import co.cask.cdap.api.annotation.Plugin;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.data.schema.Schema.Field;
@@ -58,9 +57,6 @@ import scala.Tuple2;
 /**
  * SparkCompute plugin that generates different stats for given schema.
  */
-@Plugin(type = SparkCompute.PLUGIN_TYPE)
-@Name(StatsCompute.NAME)
-@Description("Computes statistics for each schema column.")
 public class StatsCompute extends SparkCompute<StructuredRecord, StructuredRecord> {
 	/**
 	 * 
@@ -120,7 +116,7 @@ public class StatsCompute extends SparkCompute<StructuredRecord, StructuredRecor
 	private static class CountFunction implements PairFlatMapFunction<Tuple2<String, Iterable<String>>, String, Long> {
 
 		@Override
-		public Iterable<Tuple2<String, Long>> call(Tuple2<String, Iterable<String>> tuples) throws Exception {
+		public Iterator<Tuple2<String, Long>> call(Tuple2<String, Iterable<String>> tuples) throws Exception {
 			String word = tuples._1();
 			Long count = 0L;
 			for (String s : tuples._2()) {
@@ -128,7 +124,7 @@ public class StatsCompute extends SparkCompute<StructuredRecord, StructuredRecor
 			}
 			List<Tuple2<String, Long>> output = new ArrayList<>();
 			output.add(new Tuple2<>(word, count));
-			return output;
+			return output.iterator();
 		}
 	}
 

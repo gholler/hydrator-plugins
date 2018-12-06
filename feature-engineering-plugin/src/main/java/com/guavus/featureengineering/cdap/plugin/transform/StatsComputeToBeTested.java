@@ -18,6 +18,7 @@ package com.guavus.featureengineering.cdap.plugin.transform;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +32,6 @@ import javax.ws.rs.Path;
 
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.api.java.function.PairFunction;
@@ -44,8 +44,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
 
 import co.cask.cdap.api.annotation.Description;
-import co.cask.cdap.api.annotation.Name;
-import co.cask.cdap.api.annotation.Plugin;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.data.schema.Schema.Field;
@@ -121,7 +119,7 @@ public class StatsComputeToBeTested extends SparkCompute<StructuredRecord, Struc
 	private static class CountFunction implements PairFlatMapFunction<Tuple2<String, Iterable<String>>, String, Long> {
 
 		@Override
-		public Iterable<Tuple2<String, Long>> call(Tuple2<String, Iterable<String>> tuples) throws Exception {
+		public Iterator<Tuple2<String, Long>> call(Tuple2<String, Iterable<String>> tuples) throws Exception {
 			String word = tuples._1();
 			Long count = 0L;
 			for (String s : tuples._2()) {
@@ -129,7 +127,7 @@ public class StatsComputeToBeTested extends SparkCompute<StructuredRecord, Struc
 			}
 			List<Tuple2<String, Long>> output = new ArrayList<>();
 			output.add(new Tuple2<>(word, count));
-			return output;
+			return output.iterator();
 		}
 	}
 
@@ -527,6 +525,7 @@ public class StatsComputeToBeTested extends SparkCompute<StructuredRecord, Struc
 	}
 
 	private JavaRDD<Vector> getVectorRDD(JavaRDD<StructuredRecord> javaRDD, final List<Field> inputField) {
+		
 		return javaRDD.map(new Function<StructuredRecord, Vector>() {
 
 			@Override
