@@ -19,7 +19,6 @@ package com.guavus.featureengineering.cdap.plugin.transform;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -31,14 +30,12 @@ import javax.ws.rs.Path;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
-import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.stat.MultivariateStatisticalSummary;
 import org.apache.spark.mllib.stat.Statistics;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Splitter;
 
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Name;
@@ -49,11 +46,10 @@ import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.data.schema.Schema.Field;
 import co.cask.cdap.api.data.schema.Schema.Type;
 import co.cask.cdap.api.plugin.PluginConfig;
+import co.cask.cdap.common.enums.FeatureSTATS;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.SparkCompute;
 import co.cask.cdap.etl.api.batch.SparkExecutionPluginContext;
-import co.cask.cdap.common.enums.FeatureSTATS;
-import scala.Tuple2;
 
 /*TODO:This implementation is unoptimized and doesn't take advantage of spark for computing string stats and percentiles. 
  * Need to modify this implementation via adding similar logic of taking matrix transposes in spark.
@@ -87,11 +83,11 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 		@Nullable
 		@Description("Dummy Field.")
 		private String dummy;
-		
+
 		Conf() {
 			this.dummy = "";
 		}
-		
+
 	}
 
 	@Override
@@ -196,22 +192,45 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 		}
 		Schema inputSchema = getInputSchema(javaRDD);
 		final List<Schema.Field> inputField = inputSchema.getFields();
+		Map<String, Integer> dataTypeCountMap = getDataTypeCountMap(inputField);
+		MultivariateStatisticalSummary summary = null;
+		List<List<Double>> percentileScores = null;
+		if (dataTypeCountMap.get("numeric") > 0) {
 
-		JavaRDD<Vector> vectoredRDD = getVectorRDD(javaRDD, inputField);
-		MultivariateStatisticalSummary summary = Statistics.colStats(vectoredRDD.rdd());
-
-		JavaRDD<List<String>> stringListRDD = getStringListRDD(javaRDD, inputField);
-		List<String> maxOccuringStringEntryList = new LinkedList<>();
-		List<List<Long>> stringStats = getStringStats(stringListRDD.collect(), inputField, maxOccuringStringEntryList);
-		stringListRDD.unpersist();
-
-		JavaRDD<List<Double>> doubleListRDD = getDoubleListRDD(javaRDD, inputField);
-		List<List<Double>> percentileScores = getPercentileStatsRDD(doubleListRDD.collect(),
-				sparkExecutionPluginContext, summary.variance().toArray().length, size);
-		doubleListRDD.unpersist();
+			JavaRDD<Vector> vectoredRDD = getVectorRDD(javaRDD, inputField);
+			summary = Statistics.colStats(vectoredRDD.rdd());
+			JavaRDD<List<Double>> doubleListRDD = getDoubleListRDD(javaRDD, inputField);
+			percentileScores = getPercentileStatsRDD(doubleListRDD.collect(), sparkExecutionPluginContext,
+					summary.variance().toArray().length, size);
+		}
+		List<List<Long>> stringStats = null;
+		List<String> maxOccuringStringEntryList = null;
+		if (dataTypeCountMap.get("string") > 0) {
+			JavaRDD<List<String>> stringListRDD = getStringListRDD(javaRDD, inputField);
+			maxOccuringStringEntryList = new LinkedList<>();
+			stringStats = getStringStats(stringListRDD.collect(), inputField, maxOccuringStringEntryList);
+		}
 		List<StructuredRecord> recordList = createStructuredRecordWithVerticalSchema(summary, stringStats,
 				percentileScores, inputSchema, maxOccuringStringEntryList);
 		return sparkExecutionPluginContext.getSparkContext().parallelize(recordList);
+	}
+
+	private Map<String, Integer> getDataTypeCountMap(final List<Field> inputField) {
+		int stringCount = 0;
+		int numericCount = 0;
+		for (Field field : inputField) {
+			Schema.Type type = getSchemaType(field.getSchema());
+			if (type.equals(Schema.Type.STRING)) {
+				stringCount++;
+			} else if (type.equals(Schema.Type.DOUBLE) || type.equals(Schema.Type.INT) || type.equals(Schema.Type.FLOAT)
+					|| type.equals(Schema.Type.LONG)) {
+				numericCount++;
+			}
+		}
+		Map<String, Integer> dataTypeCountMap = new HashMap<>();
+		dataTypeCountMap.put("numeric", numericCount);
+		dataTypeCountMap.put("string", stringCount);
+		return dataTypeCountMap;
 	}
 
 	private List<StructuredRecord> createStructuredRecordWithVerticalSchema(MultivariateStatisticalSummary summary,
@@ -223,39 +242,43 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 			builderList.add(StructuredRecord.builder(verticalSchema));
 		}
 		addFeatureNameRecord(inputSchema, builderList);
-		addNumericStatsVertically(inputSchema, summary.variance().toArray(),
+		addNumericStatsVertically(inputSchema, (summary == null) ? null : summary.variance().toArray(),
 				FeatureSTATS.Variance.getName(), builderList);
-		addNumericStatsVertically(inputSchema, summary.max().toArray(), FeatureSTATS.Max.getName(),
-				builderList);
-		addNumericStatsVertically(inputSchema, summary.min().toArray(), FeatureSTATS.Min.getName(),
-				builderList);
-		addNumericStatsVertically(inputSchema, summary.mean().toArray(), FeatureSTATS.Mean.getName(),
-				builderList);
-		addNumericStatsVertically(inputSchema, summary.numNonzeros().toArray(),
+		addNumericStatsVertically(inputSchema, (summary == null) ? null : summary.max().toArray(),
+				FeatureSTATS.Max.getName(), builderList);
+		addNumericStatsVertically(inputSchema, (summary == null) ? null : summary.min().toArray(),
+				FeatureSTATS.Min.getName(), builderList);
+		addNumericStatsVertically(inputSchema, (summary == null) ? null : summary.mean().toArray(),
+				FeatureSTATS.Mean.getName(), builderList);
+		addNumericStatsVertically(inputSchema, (summary == null) ? null : summary.numNonzeros().toArray(),
 				FeatureSTATS.NumOfNonZeros.getName(), builderList);
-		addNumericStatsVertically(inputSchema, summary.normL1().toArray(), FeatureSTATS.NormL1.getName(),
-				builderList);
-		addNumericStatsVertically(inputSchema, summary.normL2().toArray(), FeatureSTATS.NormL2.getName(),
-				builderList);
-		addNumericStatsVertically(inputSchema, convertToPrimitiveDoubleArray(percentileScores.get(0)),
+		addNumericStatsVertically(inputSchema, (summary == null) ? null : summary.normL1().toArray(),
+				FeatureSTATS.NormL1.getName(), builderList);
+		addNumericStatsVertically(inputSchema, (summary == null) ? null : summary.normL2().toArray(),
+				FeatureSTATS.NormL2.getName(), builderList);
+		addNumericStatsVertically(inputSchema,
+				(percentileScores == null) ? null : convertToPrimitiveDoubleArray(percentileScores.get(0)),
 				FeatureSTATS.TwentyFivePercentile.getName(), builderList);
-		addNumericStatsVertically(inputSchema, convertToPrimitiveDoubleArray(percentileScores.get(1)),
+		addNumericStatsVertically(inputSchema,
+				(percentileScores == null) ? null : convertToPrimitiveDoubleArray(percentileScores.get(1)),
 				FeatureSTATS.FiftyPercentile.getName(), builderList);
-		addNumericStatsVertically(inputSchema, convertToPrimitiveDoubleArray(percentileScores.get(2)),
+		addNumericStatsVertically(inputSchema,
+				(percentileScores == null) ? null : convertToPrimitiveDoubleArray(percentileScores.get(2)),
 				FeatureSTATS.SeventyFivePercentile.getName(), builderList);
-		addInterQuartilePercentile(inputSchema, convertToPrimitiveDoubleArray(percentileScores.get(0)),
-				convertToPrimitiveDoubleArray(percentileScores.get(2)), FeatureSTATS.InterQuartilePercentile.getName(),
-				builderList);
-		addStringStatsVertically(inputSchema, stringStats.get(0), FeatureSTATS.TotalCount.getName(),
-				builderList);
-		addStringStatsVertically(inputSchema, stringStats.get(1), FeatureSTATS.UniqueCount.getName(),
-				builderList);
-		addStringStatsVertically(inputSchema, stringStats.get(2),
+		addInterQuartilePercentile(inputSchema,
+				(percentileScores == null) ? null : convertToPrimitiveDoubleArray(percentileScores.get(0)),
+				(percentileScores == null) ? null : convertToPrimitiveDoubleArray(percentileScores.get(2)),
+				FeatureSTATS.InterQuartilePercentile.getName(), builderList);
+		addStringStatsVertically(inputSchema, (stringStats == null) ? null : stringStats.get(0),
+				FeatureSTATS.TotalCount.getName(), builderList);
+		addStringStatsVertically(inputSchema, (stringStats == null) ? null : stringStats.get(1),
+				FeatureSTATS.UniqueCount.getName(), builderList);
+		addStringStatsVertically(inputSchema, (stringStats == null) ? null : stringStats.get(2),
 				FeatureSTATS.LeastFrequentWordCount.getName(), builderList);
-		addStringStatsVertically(inputSchema, stringStats.get(3),
+		addStringStatsVertically(inputSchema, (stringStats == null) ? null : stringStats.get(3),
 				FeatureSTATS.MostFrequentWordCount.getName(), builderList);
-		addMaxOccuringWordVertically(inputSchema, maxOccuringStringEntryList,
-				FeatureSTATS.MostFrequentEntry.getName(), builderList);
+		addMaxOccuringWordVertically(inputSchema, maxOccuringStringEntryList, FeatureSTATS.MostFrequentEntry.getName(),
+				builderList);
 		List<StructuredRecord> recordList = new LinkedList<>();
 		for (Builder builder : builderList) {
 			recordList.add(builder.build());
@@ -268,7 +291,7 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 		for (Schema.Field field : inputSchema.getFields()) {
 			Builder builder = builderList.get(index++);
 			builder.set(FeatureSTATS.Feature.getName(), field.getName());
-			builder.set("Id", (long)index);
+			builder.set("Id", (long) index);
 		}
 	}
 
@@ -282,19 +305,19 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 	}
 
 	private Schema.Type getSchemaType(Schema schema) {
-		if(schema.getType().equals(Schema.Type.UNION)) {
+		if (schema.getType().equals(Schema.Type.UNION)) {
 			List<Schema> schemas = schema.getUnionSchemas();
-			if(schemas.size()==2) {
-				if(schemas.get(0).getType().equals(Schema.Type.NULL))
+			if (schemas.size() == 2) {
+				if (schemas.get(0).getType().equals(Schema.Type.NULL))
 					return schemas.get(1).getType();
-				else 
+				else
 					return schemas.get(0).getType();
 			}
 			return schema.getType();
-		} else 
+		} else
 			return schema.getType();
 	}
-	
+
 	private void addStringStatsVertically(Schema inputSchema, List<Long> values, String statName,
 			List<Builder> builderList) {
 		int index = 0;
@@ -304,15 +327,19 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 		for (index = 0; index < inputFields.size(); index++) {
 			Builder builder = builderList.get(index);
 			Schema.Field field = inputFields.get(index);
-			if (!getSchemaType(field.getSchema()).equals(Schema.Type.STRING))
+			if (!getSchemaType(field.getSchema()).equals(Schema.Type.STRING)) {
 				builder.set(statName, null);
-			else
+			} else if (values != null) {
 				builder.set(statName, (values.get(valueIndex++)));
+			} else {
+				builder.set(statName, null);
+			}
+
 		}
 	}
 
-	private void addMaxOccuringWordVertically(Schema inputSchema,
-			List<String> maxOccuringStringEntryList, String statName, List<Builder> builderList) {
+	private void addMaxOccuringWordVertically(Schema inputSchema, List<String> maxOccuringStringEntryList,
+			String statName, List<Builder> builderList) {
 		int index = 0;
 		int valueIndex = 0;
 
@@ -322,8 +349,11 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 			Schema.Field field = inputFields.get(index);
 			if (!getSchemaType(field.getSchema()).equals(Schema.Type.STRING))
 				builder.set(statName, null);
-			else
+			else if (maxOccuringStringEntryList != null) {
 				builder.set(statName, maxOccuringStringEntryList.get(valueIndex++));
+			} else {
+				builder.set(statName, null);
+			}
 		}
 	}
 
@@ -336,13 +366,17 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 			if (getSchemaType(field.getSchema()).equals(Schema.Type.STRING)) {
 				builder.set(statName, null);
 			} else {
-				builder.set(statName, values[valueIndex++]);
+				if (values != null) {
+					builder.set(statName, values[valueIndex++]);
+				} else {
+					builder.set(statName, null);
+				}
 			}
 		}
 	}
 
-	private void addInterQuartilePercentile(Schema inputSchema, double[] value1, double[] value2,
-			String statName, List<Builder> builderList) {
+	private void addInterQuartilePercentile(Schema inputSchema, double[] value1, double[] value2, String statName,
+			List<Builder> builderList) {
 		int index = 0;
 		int valueIndex = 0;
 		for (Schema.Field field : inputSchema.getFields()) {
@@ -350,8 +384,12 @@ public class StatsComputeInMemory extends SparkCompute<StructuredRecord, Structu
 			if (getSchemaType(field.getSchema()).equals(Schema.Type.STRING)) {
 				builder.set(statName, null);
 			} else {
-				builder.set(statName, value2[valueIndex] - value1[valueIndex]);
-				valueIndex++;
+				if (value1 == null || value2 == null) {
+					builder.set(statName, null);
+				} else {
+					builder.set(statName, value2[valueIndex] - value1[valueIndex]);
+					valueIndex++;
+				}
 			}
 		}
 	}

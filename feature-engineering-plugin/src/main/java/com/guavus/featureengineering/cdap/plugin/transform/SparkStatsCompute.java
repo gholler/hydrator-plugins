@@ -77,11 +77,11 @@ public class SparkStatsCompute extends SparkCompute<StructuredRecord, Structured
 	 */
 	@VisibleForTesting
 	public static class Conf extends PluginConfig {
-		
+
 		@Nullable
 		@Description("Dummy Field.")
 		private String dummy;
-		
+
 		Conf() {
 			this.dummy = "";
 		}
@@ -274,18 +274,43 @@ public class SparkStatsCompute extends SparkCompute<StructuredRecord, Structured
 		}
 		Schema inputSchema = getInputSchema(javaRDD);
 		final List<Schema.Field> inputField = inputSchema.getFields();
-
-		JavaRDD<Vector> vectoredRDD = getVectorRDD(javaRDD, inputField);
-		MultivariateStatisticalSummary summary = Statistics.colStats(vectoredRDD.rdd());
-		JavaRDD<List<Object>> stringStatsRDD = getStringStats(javaRDD, inputField);
-		Map<String, List<Object>> stringStatsMap = getMapFromStatsRDD(stringStatsRDD);
-		JavaRDD<List<Object>> percentileStatsRDD = getPercentileStatsRDD(javaRDD, inputField);
-		Map<String, List<Object>> percentileStatsMap = getMapFromStatsRDD(percentileStatsRDD);
+		Map<String, Integer> dataTypeCountMap = getDataTypeCountMap(inputField);
+		MultivariateStatisticalSummary summary = null;
+		Map<String, List<Object>> percentileStatsMap = new HashMap<>();
+		if (dataTypeCountMap.get("numeric") > 0) {
+			JavaRDD<Vector> vectoredRDD = getVectorRDD(javaRDD, inputField);
+			summary = Statistics.colStats(vectoredRDD.rdd());
+			JavaRDD<List<Object>> percentileStatsRDD = getPercentileStatsRDD(javaRDD, inputField);
+			percentileStatsMap = getMapFromStatsRDD(percentileStatsRDD);
+		}
+		Map<String, List<Object>> stringStatsMap = new HashMap<>();
+		if (dataTypeCountMap.get("string") > 0) {
+			JavaRDD<List<Object>> stringStatsRDD = getStringStats(javaRDD, inputField);
+			stringStatsMap = getMapFromStatsRDD(stringStatsRDD);
+		}
 		JavaPairRDD<String, Long> nullCountRDD = getNullCounts(javaRDD, inputField);
 
 		List<StructuredRecord> recordList = createStructuredRecordWithVerticalSchema(summary, stringStatsMap,
 				percentileStatsMap, nullCountRDD.collectAsMap(), inputSchema);
 		return sparkExecutionPluginContext.getSparkContext().parallelize(recordList);
+	}
+
+	private Map<String, Integer> getDataTypeCountMap(final List<Field> inputField) {
+		int stringCount = 0;
+		int numericCount = 0;
+		for (Field field : inputField) {
+			Schema.Type type = getSchemaType(field.getSchema());
+			if (type.equals(Schema.Type.STRING)) {
+				stringCount++;
+			} else if (type.equals(Schema.Type.DOUBLE) || type.equals(Schema.Type.INT) || type.equals(Schema.Type.FLOAT)
+					|| type.equals(Schema.Type.LONG)) {
+				numericCount++;
+			}
+		}
+		Map<String, Integer> dataTypeCountMap = new HashMap<>();
+		dataTypeCountMap.put("numeric", numericCount);
+		dataTypeCountMap.put("string", stringCount);
+		return dataTypeCountMap;
 	}
 
 	private Map<String, List<Object>> getMapFromStatsRDD(JavaRDD<List<Object>> statsRDD) {
@@ -306,15 +331,20 @@ public class SparkStatsCompute extends SparkCompute<StructuredRecord, Structured
 			builderList.add(StructuredRecord.builder(verticalSchema));
 		}
 		addFeatureNameRecord(inputSchema, builderList);
-		addNumericStatsVertically(inputSchema, summary.variance().toArray(), FeatureSTATS.Variance.getName(),
-				builderList);
-		addNumericStatsVertically(inputSchema, summary.max().toArray(), FeatureSTATS.Max.getName(), builderList);
-		addNumericStatsVertically(inputSchema, summary.min().toArray(), FeatureSTATS.Min.getName(), builderList);
-		addNumericStatsVertically(inputSchema, summary.mean().toArray(), FeatureSTATS.Mean.getName(), builderList);
-		addNumericStatsVertically(inputSchema, summary.numNonzeros().toArray(), FeatureSTATS.NumOfNonZeros.getName(),
-				builderList);
-		addNumericStatsVertically(inputSchema, summary.normL1().toArray(), FeatureSTATS.NormL1.getName(), builderList);
-		addNumericStatsVertically(inputSchema, summary.normL2().toArray(), FeatureSTATS.NormL2.getName(), builderList);
+		addNumericStatsVertically(inputSchema, (summary == null) ? null : summary.variance().toArray(),
+				FeatureSTATS.Variance.getName(), builderList);
+		addNumericStatsVertically(inputSchema, (summary == null) ? null : summary.max().toArray(),
+				FeatureSTATS.Max.getName(), builderList);
+		addNumericStatsVertically(inputSchema, (summary == null) ? null : summary.min().toArray(),
+				FeatureSTATS.Min.getName(), builderList);
+		addNumericStatsVertically(inputSchema, (summary == null) ? null : summary.mean().toArray(),
+				FeatureSTATS.Mean.getName(), builderList);
+		addNumericStatsVertically(inputSchema, (summary == null) ? null : summary.numNonzeros().toArray(),
+				FeatureSTATS.NumOfNonZeros.getName(), builderList);
+		addNumericStatsVertically(inputSchema, (summary == null) ? null : summary.normL1().toArray(),
+				FeatureSTATS.NormL1.getName(), builderList);
+		addNumericStatsVertically(inputSchema, (summary == null) ? null : summary.normL2().toArray(),
+				FeatureSTATS.NormL2.getName(), builderList);
 		addPercentileStatsVertically(inputSchema, percentileStatsMap, builderList);
 		addStringStatsVertically(inputSchema, stringStatsMap, builderList);
 		addNullCountVertically(inputSchema, nullCountMap, builderList);
@@ -410,7 +440,11 @@ public class SparkStatsCompute extends SparkCompute<StructuredRecord, Structured
 			if (getSchemaType(field.getSchema()).equals(Schema.Type.STRING)) {
 				builder.set(statName, null);
 			} else {
-				builder.set(statName, values[valueIndex++]);
+				if (values != null) {
+					builder.set(statName, values[valueIndex++]);
+				} else {
+					builder.set(statName, null);
+				}
 			}
 		}
 	}
