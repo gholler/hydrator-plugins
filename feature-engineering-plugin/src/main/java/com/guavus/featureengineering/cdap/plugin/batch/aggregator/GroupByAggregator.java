@@ -15,10 +15,6 @@
  */
 package com.guavus.featureengineering.cdap.plugin.batch.aggregator;
 
-import javax.ws.rs.Path;
-
-import com.guavus.featureengineering.cdap.plugin.batch.aggregator.config.GroupByConfig;
-
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
@@ -28,44 +24,48 @@ import co.cask.cdap.api.annotation.PluginOutput;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.etl.api.batch.BatchAggregator;
 
+import com.guavus.featureengineering.cdap.plugin.batch.aggregator.config.GroupByConfig;
+
+import javax.ws.rs.Path;
+
 /**
  * @author bhupesh.goel
  *
  */
 @Plugin(type = BatchAggregator.PLUGIN_TYPE)
 @Name("GroupByAggregateFE")
-@Description("Groups by one or more fields, then performs one or more aggregate functions on each group. " +
-  "Supports avg, count, count(*), first, last, max, min, and sum as aggregate functions.")
+@Description("Groups by one or more fields, then performs one or more aggregate functions on each group. "
+        + "Supports avg, count, count(*), first, last, max, min, and sum as aggregate functions.")
 @PluginInput(type = { "long:int:double:float", "*", "*", "*", "*", "*", "long:int:double:float",
-		"long:int:double:float", "long:int:double:float", "string:int:long" })
-@PluginOutput(type = { "double", "long", "same", "same", "same", "same", "double", "long:int:double:float",
-		"double", "int" })
+        "long:int:double:float", "long:int:double:float", "string:int:long" })
+@PluginOutput(
+        type = { "double", "long", "same", "same", "same", "same", "double", "long:int:double:float", "double", "int" })
 @PluginFunction(function = { "avg", "count", "first", "last", "min", "max", "stddev", "sum", "variance", "nuniq" })
 public class GroupByAggregator extends GroupByAggregatorBase {
-	private final GroupByConfig conf;
-	
-	/**
-	 * @param conf
-	 */
-	public GroupByAggregator(GroupByConfig conf) {
-		super(conf);
-		this.conf = conf;
-	}
+    private final GroupByConfig conf;
 
-	@Path("outputSchema")
-	public Schema getOutputSchema(GetSchemaRequest request) {
-		return getStaticOutputSchema(request.inputSchema, request.getGroupByFields(), request.getAggregates(),
-				null, null, null);
-	}
+    /**
+     * @param conf
+     */
+    public GroupByAggregator(GroupByConfig conf) {
+        super(conf);
+        this.conf = conf;
+    }
 
-	/**
-	 * Endpoint request for output schema.
-	 */
-	public static class GetSchemaRequest extends GroupByConfig {
-		/**
-		 * 
-		 */
-		private static final long serialVersionUID = -6237550702080539086L;
-		private Schema inputSchema;
-	}
+    @Path("outputSchema")
+    public Schema getOutputSchema(GetSchemaRequest request) {
+        return getStaticOutputSchema(request.inputSchema, request.getGroupByFields(), request.getAggregates(), null,
+                null, null);
+    }
+
+    /**
+     * Endpoint request for output schema.
+     */
+    public static class GetSchemaRequest extends GroupByConfig {
+        /**
+         * 
+         */
+        private static final long serialVersionUID = -6237550702080539086L;
+        private Schema inputSchema;
+    }
 }

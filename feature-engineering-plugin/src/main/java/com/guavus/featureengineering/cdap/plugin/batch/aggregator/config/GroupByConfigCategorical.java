@@ -15,11 +15,8 @@
  */
 package com.guavus.featureengineering.cdap.plugin.batch.aggregator.config;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import co.cask.cdap.api.data.schema.Schema;
+import co.cask.hydrator.plugin.batch.aggregator.function.AggregateFunction;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
@@ -28,88 +25,94 @@ import com.guavus.featureengineering.cdap.plugin.batch.aggregator.function.CatCr
 import com.guavus.featureengineering.cdap.plugin.batch.aggregator.function.IndicatorCount;
 import com.guavus.featureengineering.cdap.plugin.batch.aggregator.function.ValueCount;
 
-import co.cask.cdap.api.data.schema.Schema;
-import co.cask.hydrator.plugin.batch.aggregator.function.AggregateFunction;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Config for group by types of plugins.
  */
 public class GroupByConfigCategorical extends GroupByConfig {
 
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = 3137515134995026694L;
+    /**
+     * 
+     */
+    private static final long serialVersionUID = 3137515134995026694L;
 
-	public GroupByConfigCategorical() {
-		super();
-	}
+    public GroupByConfigCategorical() {
+        super();
+    }
 
-	@VisibleForTesting
-	GroupByConfigCategorical(String groupByFields, String aggregates, String categoricalDictionary) {
-		super(groupByFields, aggregates, categoricalDictionary);
-	}
-	
-	@Override
-	protected String getValidAggregateFunctionName(final String functionName) {
-		String function;
-		try {
-			function = Function.valueOf(functionName.toUpperCase()).name();
-		} catch (IllegalArgumentException e) {
-			throw new IllegalArgumentException(String.format("Invalid function '%s'. Must be one of %s.",
-					functionName, Joiner.on(',').join(Function.values())));
-		}
-		return function;
-	}
-	
-	@Override
-	protected FunctionInfo createFunctionInfoInstance(final String name, final String[] field, final String functionName) {
-		return new CategoricalFunctionInfo(name, field, functionName);
-	}
-	
-	/**
-	 * @return the categoricalDictionary
-	 */
-	@Override
-	public Map<String, List<String>> getCategoricalDictionaryMap() {
-		if (categoricalDictionary == null || categoricalDictionary.isEmpty())
-			return null;
-		Map<String, List<String>> categoricalDictionaryMap = new HashMap<>();
-		for (String field : Splitter.on(',').trimResults().split(categoricalDictionary)) {
-			String tokens[] = field.split(":");
-			List<String> categoricalDictionaryFields = new ArrayList<String>();
-			categoricalDictionaryFields = Arrays.asList(tokens[1].trim().split(";"));
-			categoricalDictionaryMap.put(tokens[0].trim().toLowerCase(), categoricalDictionaryFields);
-		}
-		return categoricalDictionaryMap;
-	}
-	/**
-	 * Class to hold information for an aggregate function.
-	 */
-	public static class CategoricalFunctionInfo extends FunctionInfo{
+    @VisibleForTesting
+    GroupByConfigCategorical(String groupByFields, String aggregates, String categoricalDictionary) {
+        super(groupByFields, aggregates, categoricalDictionary);
+    }
 
-		CategoricalFunctionInfo(String name, String[] field, String function) {
-			super(name, field, function);
-		}
+    @Override
+    protected String getValidAggregateFunctionName(final String functionName) {
+        String function;
+        try {
+            function = Function.valueOf(functionName.toUpperCase()).name();
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(String.format("Invalid function '%s'. Must be one of %s.", functionName,
+                    Joiner.on(',').join(Function.values())));
+        }
+        return function;
+    }
 
-		@Override
-		public AggregateFunction getAggregateFunction(Schema[] fieldSchema) {
-			Function functionEnum = Function.valueOf(function);
-			switch (functionEnum) {
-			case VALUECOUNT:
-				return new ValueCount(field[0], fieldSchema[0]);
-			case INDICATORCOUNT:
-				return new IndicatorCount(field[0], fieldSchema[0]);
-			case CATCROSSPRODUCT:
-				return new CatCrossProduct(field, fieldSchema);	
-			}
-			// should never happen
-			throw new IllegalStateException("Unknown function type " + function);
-		}
+    @Override
+    protected FunctionInfo createFunctionInfoInstance(final String name, final String[] field,
+            final String functionName) {
+        return new CategoricalFunctionInfo(name, field, functionName);
+    }
 
-	}
-	
-	private enum Function {
-		CATCROSSPRODUCT, VALUECOUNT, INDICATORCOUNT
-	}
+    /**
+     * @return the categoricalDictionary
+     */
+    @Override
+    public Map<String, List<String>> getCategoricalDictionaryMap() {
+        if (categoricalDictionary == null || categoricalDictionary.isEmpty()) {
+            return null;
+        }
+        Map<String, List<String>> categoricalDictionaryMap = new HashMap<>();
+        for (String field : Splitter.on(',').trimResults().split(categoricalDictionary)) {
+            String tokens[] = field.split(":");
+            List<String> categoricalDictionaryFields = new ArrayList<String>();
+            categoricalDictionaryFields = Arrays.asList(tokens[1].trim().split(";"));
+            categoricalDictionaryMap.put(tokens[0].trim().toLowerCase(), categoricalDictionaryFields);
+        }
+        return categoricalDictionaryMap;
+    }
+
+    /**
+     * Class to hold information for an aggregate function.
+     */
+    public static class CategoricalFunctionInfo extends FunctionInfo {
+
+        CategoricalFunctionInfo(String name, String[] field, String function) {
+            super(name, field, function);
+        }
+
+        @Override
+        public AggregateFunction getAggregateFunction(Schema[] fieldSchema) {
+            Function functionEnum = Function.valueOf(function);
+            switch (functionEnum) {
+            case VALUECOUNT:
+                return new ValueCount(field[0], fieldSchema[0]);
+            case INDICATORCOUNT:
+                return new IndicatorCount(field[0], fieldSchema[0]);
+            case CATCROSSPRODUCT:
+                return new CatCrossProduct(field, fieldSchema);
+            }
+            // should never happen
+            throw new IllegalStateException("Unknown function type " + function);
+        }
+
+    }
+
+    private enum Function {
+        CATCROSSPRODUCT, VALUECOUNT, INDICATORCOUNT
+    }
 }

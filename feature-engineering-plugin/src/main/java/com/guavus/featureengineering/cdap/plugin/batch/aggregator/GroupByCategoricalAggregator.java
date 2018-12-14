@@ -15,10 +15,6 @@
  */
 package com.guavus.featureengineering.cdap.plugin.batch.aggregator;
 
-import javax.ws.rs.Path;
-
-import com.guavus.featureengineering.cdap.plugin.batch.aggregator.config.GroupByConfigCategorical;
-
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
@@ -28,6 +24,10 @@ import co.cask.cdap.api.annotation.PluginOutput;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.etl.api.batch.BatchAggregator;
 
+import com.guavus.featureengineering.cdap.plugin.batch.aggregator.config.GroupByConfigCategorical;
+
+import javax.ws.rs.Path;
+
 /**
  * @author bhupesh.goel
  *
@@ -35,32 +35,32 @@ import co.cask.cdap.etl.api.batch.BatchAggregator;
 @Plugin(type = BatchAggregator.PLUGIN_TYPE)
 @Name("GroupByCategoricalAggregate")
 @Description("Groups by one or more fields, then performs one or more aggregate functions on each group values. "
-		+ "Supports valuecount, indicatorcount, nuniq as aggregate functions.")
+        + "Supports valuecount, indicatorcount, nuniq as aggregate functions.")
 @PluginInput(type = { "string:int:long", "string:int:long", "string:int:long string:int:long" })
 @PluginOutput(type = { "list<int>", "list<int>", "list<int>" })
 @PluginFunction(function = { "valuecount", "indicatorcount", "catcrossproduct" })
 public class GroupByCategoricalAggregator extends GroupByAggregatorBase {
 
-	private final GroupByConfigCategorical conf;
-	
-	/**
-	 * @param conf
-	 */
-	public GroupByCategoricalAggregator(GroupByConfigCategorical conf) {
-		super(conf);
-		this.conf = conf;
-	}
+    private final GroupByConfigCategorical conf;
 
-	@Path("outputSchema")
-	public Schema getOutputSchema(GetSchemaRequest request) {
-		return getStaticOutputSchema(request.inputSchema, request.getGroupByFields(), request.getAggregates(),
-				request.getCategoricalDictionaryMap(), null, null);
-	}
+    /**
+     * @param conf
+     */
+    public GroupByCategoricalAggregator(GroupByConfigCategorical conf) {
+        super(conf);
+        this.conf = conf;
+    }
 
-	/**
-	 * Endpoint request for output schema.
-	 */
-	public static class GetSchemaRequest extends GroupByConfigCategorical {
-		private Schema inputSchema;
-	}
+    @Path("outputSchema")
+    public Schema getOutputSchema(GetSchemaRequest request) {
+        return getStaticOutputSchema(request.inputSchema, request.getGroupByFields(), request.getAggregates(),
+                request.getCategoricalDictionaryMap(), null, null);
+    }
+
+    /**
+     * Endpoint request for output schema.
+     */
+    public static class GetSchemaRequest extends GroupByConfigCategorical {
+        private Schema inputSchema;
+    }
 }

@@ -15,12 +15,12 @@
  */
 package com.guavus.featureengineering.cdap.plugin.transform.function;
 
+import co.cask.cdap.api.data.format.StructuredRecord;
+import co.cask.cdap.api.data.schema.Schema;
+
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
-
-import co.cask.cdap.api.data.format.StructuredRecord;
-import co.cask.cdap.api.data.schema.Schema;
 
 /**
  * Method to get day of week from timestamp.
@@ -30,32 +30,32 @@ import co.cask.cdap.api.data.schema.Schema;
  */
 public class WeekDay implements TransformFunction<Integer> {
 
-	private final String fieldName;
-	private final Schema outputSchema;
+    private final String fieldName;
+    private final Schema outputSchema;
 
-	/**
-	 * 
-	 */
-	public WeekDay(String fieldName, Schema fieldSchema) {
-		this.fieldName = fieldName;
-		this.outputSchema = Schema.of(Schema.Type.INT);
-	}
+    /**
+     * 
+     */
+    public WeekDay(String fieldName, Schema fieldSchema) {
+        this.fieldName = fieldName;
+        this.outputSchema = Schema.of(Schema.Type.INT);
+    }
 
-	@Override
-	public Integer applyFunction(StructuredRecord record) {
-		Object val = record.get(fieldName);
-	    if (val == null) {
-	      return 0;
-	    }
-	    String dateInString = val.toString();
-	    DateTimeFormatter formatter = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC();
-	    DateTime dt = formatter.parseDateTime(dateInString);
-	    return dt.getDayOfWeek();
-	}
+    @Override
+    public Integer applyFunction(StructuredRecord record) {
+        Object val = record.get(fieldName);
+        if (val == null) {
+            return 0;
+        }
+        String dateInString = val.toString();
+        DateTimeFormatter formatter = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC();
+        DateTime dt = formatter.parseDateTime(dateInString);
+        return dt.getDayOfWeek();
+    }
 
-	@Override
-	public Schema getOutputSchema() {
-		return outputSchema;
-	}
+    @Override
+    public Schema getOutputSchema() {
+        return outputSchema;
+    }
 
 }

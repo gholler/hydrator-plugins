@@ -15,12 +15,12 @@
  */
 package com.guavus.featureengineering.cdap.plugin.batch.aggregator.function;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.hydrator.plugin.batch.aggregator.function.AggregateFunction;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author bhupesh.goel
@@ -28,39 +28,39 @@ import co.cask.hydrator.plugin.batch.aggregator.function.AggregateFunction;
  */
 public class IndicatorCount implements AggregateFunction<Map<String, Integer>> {
 
-	private final String fieldName;
-	private final Schema outputSchema;
-	private Map<String,Integer> presenceMap;
+    private final String fieldName;
+    private final Schema outputSchema;
+    private Map<String, Integer> presenceMap;
 
-	public IndicatorCount(String fieldName, Schema fieldSchema) {
-		this.fieldName = fieldName;
-		boolean isNullable = fieldSchema.isNullable();
-		outputSchema = isNullable ? Schema.nullableOf(Schema.of(Schema.Type.INT)) : Schema.of(Schema.Type.INT);
-	}
+    public IndicatorCount(String fieldName, Schema fieldSchema) {
+        this.fieldName = fieldName;
+        boolean isNullable = fieldSchema.isNullable();
+        outputSchema = isNullable ? Schema.nullableOf(Schema.of(Schema.Type.INT)) : Schema.of(Schema.Type.INT);
+    }
 
-	@Override
-	public void beginFunction() {
-		presenceMap = new HashMap<String, Integer>();
-	}
+    @Override
+    public void beginFunction() {
+        presenceMap = new HashMap<String, Integer>();
+    }
 
-	@Override
-	public void operateOn(StructuredRecord record) {
-		Object val = record.get(fieldName);
-		if (val == null) {
-			return;
-		}
-		String input = val.toString();
-		presenceMap.put(input.toLowerCase(), 1);
-	}
+    @Override
+    public void operateOn(StructuredRecord record) {
+        Object val = record.get(fieldName);
+        if (val == null) {
+            return;
+        }
+        String input = val.toString();
+        presenceMap.put(input.toLowerCase(), 1);
+    }
 
-	@Override
-	public Map<String, Integer> getAggregate() {
-		return presenceMap;
-	}
+    @Override
+    public Map<String, Integer> getAggregate() {
+        return presenceMap;
+    }
 
-	@Override
-	public Schema getOutputSchema() {
-		return outputSchema;
-	}
+    @Override
+    public Schema getOutputSchema() {
+        return outputSchema;
+    }
 
 }

@@ -26,30 +26,30 @@ import co.cask.cdap.api.data.schema.Schema;
  */
 public class NumWords implements TransformFunction<Integer> {
 
-	private final String fieldName;
-	private final Schema outputSchema;
+    private final String fieldName;
+    private final Schema outputSchema;
 
-	/**
-	 * 
-	 */
-	public NumWords(String fieldName, Schema fieldSchema) {
-		this.fieldName = fieldName;
-		boolean isNullable = fieldSchema.isNullable();
-		this.outputSchema = isNullable ? Schema.nullableOf(Schema.of(Schema.Type.INT)) : Schema.of(Schema.Type.INT);
-	}
+    /**
+     * 
+     */
+    public NumWords(String fieldName, Schema fieldSchema) {
+        this.fieldName = fieldName;
+        boolean isNullable = fieldSchema.isNullable();
+        this.outputSchema = isNullable ? Schema.nullableOf(Schema.of(Schema.Type.INT)) : Schema.of(Schema.Type.INT);
+    }
 
-	@Override
-	public Integer applyFunction(StructuredRecord record) {
-		Object val = record.get(fieldName);
-	    if (val == null) {
-	      return 0;
-	    }
-	    return (val.toString()).split("\\s+").length;
-	}
+    @Override
+    public Integer applyFunction(StructuredRecord record) {
+        Object val = record.get(fieldName);
+        if (val == null) {
+            return 0;
+        }
+        return (val.toString()).split("\\s+").length;
+    }
 
-	@Override
-	public Schema getOutputSchema() {
-		return outputSchema;
-	}
+    @Override
+    public Schema getOutputSchema() {
+        return outputSchema;
+    }
 
 }

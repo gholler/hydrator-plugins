@@ -15,12 +15,12 @@
  */
 package com.guavus.featureengineering.cdap.plugin.batch.aggregator.function;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.hydrator.plugin.batch.aggregator.function.AggregateFunction;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author bhupesh.goel
@@ -28,59 +28,60 @@ import co.cask.hydrator.plugin.batch.aggregator.function.AggregateFunction;
  */
 public class CatCrossProduct implements AggregateFunction<Map<String, Map<String, Integer>>> {
 
-	private final String[] fieldName;
-	private final Schema outputSchema;
-	private Map<String, Map<String, Integer>> valueSpecificFrequencyCount;
-	
-	public CatCrossProduct(String[] fieldName, Schema[] fieldSchema) {
-		this.fieldName = fieldName;
-		boolean isNullable = false;
-		for (Schema schema : fieldSchema) {
-			if (schema.isNullable()) {
-				isNullable = true;
-				break;
-			}
-		}
-		this.outputSchema = isNullable ? Schema.nullableOf(Schema.of(Schema.Type.INT)) : Schema.of(Schema.Type.INT);
-	}
+    private final String[] fieldName;
+    private final Schema outputSchema;
+    private Map<String, Map<String, Integer>> valueSpecificFrequencyCount;
 
-	@Override
-	public void beginFunction() {
-		this.valueSpecificFrequencyCount = new HashMap<>();
-	}
+    public CatCrossProduct(String[] fieldName, Schema[] fieldSchema) {
+        this.fieldName = fieldName;
+        boolean isNullable = false;
+        for (Schema schema : fieldSchema) {
+            if (schema.isNullable()) {
+                isNullable = true;
+                break;
+            }
+        }
+        this.outputSchema = isNullable ? Schema.nullableOf(Schema.of(Schema.Type.INT)) : Schema.of(Schema.Type.INT);
+    }
 
-	@Override
-	public void operateOn(StructuredRecord record) {
-		Object val1 = record.get(fieldName[0]);
-		if (val1 == null) {
-			return;
-		}
-		String input1 = val1.toString().toLowerCase();
-		
-		Object val2 = record.get(fieldName[1]);
-		if (val2 == null) {
-			return;
-		}
-		String input2 = val2.toString().toLowerCase();
-		
-		Map<String, Integer> frequencyCount = valueSpecificFrequencyCount.get(input2);
-		if (frequencyCount == null) {
-			frequencyCount = new HashMap<>();
-			valueSpecificFrequencyCount.put(input2, frequencyCount);
-		} 
-		if(!frequencyCount.containsKey(input1)) 
-			frequencyCount.put(input1, 0);
-		frequencyCount.put(input1, 1 + frequencyCount.get(input1));
-	}
+    @Override
+    public void beginFunction() {
+        this.valueSpecificFrequencyCount = new HashMap<>();
+    }
 
-	@Override
-	public Map<String, Map<String, Integer>> getAggregate() {
-		return valueSpecificFrequencyCount;
-	}
+    @Override
+    public void operateOn(StructuredRecord record) {
+        Object val1 = record.get(fieldName[0]);
+        if (val1 == null) {
+            return;
+        }
+        String input1 = val1.toString().toLowerCase();
 
-	@Override
-	public Schema getOutputSchema() {
-		return outputSchema;
-	}
+        Object val2 = record.get(fieldName[1]);
+        if (val2 == null) {
+            return;
+        }
+        String input2 = val2.toString().toLowerCase();
+
+        Map<String, Integer> frequencyCount = valueSpecificFrequencyCount.get(input2);
+        if (frequencyCount == null) {
+            frequencyCount = new HashMap<>();
+            valueSpecificFrequencyCount.put(input2, frequencyCount);
+        }
+        if (!frequencyCount.containsKey(input1)) {
+            frequencyCount.put(input1, 0);
+        }
+        frequencyCount.put(input1, 1 + frequencyCount.get(input1));
+    }
+
+    @Override
+    public Map<String, Map<String, Integer>> getAggregate() {
+        return valueSpecificFrequencyCount;
+    }
+
+    @Override
+    public Schema getOutputSchema() {
+        return outputSchema;
+    }
 
 }

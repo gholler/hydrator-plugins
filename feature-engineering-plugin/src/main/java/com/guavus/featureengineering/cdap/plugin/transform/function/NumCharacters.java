@@ -26,29 +26,29 @@ import co.cask.cdap.api.data.schema.Schema;
  */
 public class NumCharacters implements TransformFunction<Integer> {
 
-	private final String fieldName;
-	private final Schema outputSchema;
+    private final String fieldName;
+    private final Schema outputSchema;
 
-	/**
-	 * 
-	 */
-	public NumCharacters(String fieldName, Schema fieldSchema) {
-		this.fieldName = fieldName;
-		this.outputSchema = Schema.of(Schema.Type.INT);
-	}
+    /**
+     * 
+     */
+    public NumCharacters(String fieldName, Schema fieldSchema) {
+        this.fieldName = fieldName;
+        this.outputSchema = Schema.of(Schema.Type.INT);
+    }
 
-	@Override
-	public Integer applyFunction(StructuredRecord record) {
-		Object val = record.get(fieldName);
-	    if (val == null) {
-	      return 0;
-	    }
-	    return (val.toString()).length();
-	}
+    @Override
+    public Integer applyFunction(StructuredRecord record) {
+        Object val = record.get(fieldName);
+        if (val == null) {
+            return 0;
+        }
+        return (val.toString()).length();
+    }
 
-	@Override
-	public Schema getOutputSchema() {
-		return outputSchema;
-	}
+    @Override
+    public Schema getOutputSchema() {
+        return outputSchema;
+    }
 
 }

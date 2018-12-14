@@ -34,169 +34,170 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
 import javax.annotation.Nullable;
 
 /**
  * Config for join plugin.
  */
 public class JoinerConfig extends PluginConfig {
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = -275521737757875794L;
-	private static final String NUM_PARTITIONS_DESC = "Number of partitions to use when joining. "
-			+ "If not specified, the execution framework will decide how many to use.";
-	private static final String JOIN_KEY_DESC = "List of join keys to perform join operation. The list is "
-			+ "separated by '&'. Join key from each input stage will be prefixed with '<stageName>.' And the "
-			+ "relation among join keys from different inputs is represented by '='. For example: "
-			+ "customers.customer_id=items.c_id&customers.customer_name=items.c_name means the join key is a composite key"
-			+ " of customer id and customer name from customers and items input stages and join will be performed on equality "
-			+ "of the join keys.";
-	private static final String SELECTED_FIELDS = "Comma-separated list of fields to be selected and renamed "
-			+ "in join output from each input stage. Each selected input field name needs to be present in the output must be "
-			+ "prefixed with '<input_stage_name>'. The syntax for specifying alias for each selected field is similar to sql. "
-			+ "For example: customers.id as customer_id, customer.name as customer_name, item.id as item_id, "
-			+ "<stageName>.inputFieldName as alias. The output will have same order of fields as selected in selectedFields."
-			+ "There must not be any duplicate fields in output.";
-	private static final String REQUIRED_INPUTS_DESC = "Comma-separated list of stages."
-			+ " Required input stages decide the type of the join. If all the input stages are present in required inputs, "
-			+ "inner join will be performed. Otherwise, outer join will be performed considering non-required inputs as "
-			+ "optional.";
+    /**
+     * 
+     */
+    private static final long serialVersionUID = -275521737757875794L;
+    private static final String NUM_PARTITIONS_DESC = "Number of partitions to use when joining. "
+            + "If not specified, the execution framework will decide how many to use.";
+    private static final String JOIN_KEY_DESC = "List of join keys to perform join operation. The list is "
+            + "separated by '&'. Join key from each input stage will be prefixed with '<stageName>.' And the "
+            + "relation among join keys from different inputs is represented by '='. For example: "
+            + "customers.customer_id=items.c_id&customers.customer_name=items.c_name means the join key is a composite "
+            + "key of customer id and customer name from customers and items input stages and join will be performed "
+            + "on equality of the join keys.";
+    private static final String SELECTED_FIELDS = "Comma-separated list of fields to be selected and renamed "
+            + "in join output from each input stage. Each selected input field name needs to be present in the output "
+            + "must be prefixed with '<input_stage_name>'. The syntax for specifying alias for each selected field "
+            + "is similar to sql. For example: customers.id as customer_id, customer.name as customer_name, item.id as"
+            + " item_id, <stageName>.inputFieldName as alias. The output will have same order of fields as selected "
+            + "in selectedFields.There must not be any duplicate fields in output.";
+    private static final String REQUIRED_INPUTS_DESC = "Comma-separated list of stages."
+            + " Required input stages decide the type of the join. If all the input stages are present in required "
+            + "inputs, inner join will be performed. Otherwise, outer join will be performed considering non-required "
+            + "inputs as optional.";
 
-	@Nullable
-	@Description(NUM_PARTITIONS_DESC)
-	protected Integer numPartitions;
+    @Nullable
+    @Description(NUM_PARTITIONS_DESC)
+    protected Integer numPartitions;
 
-	@Description(JOIN_KEY_DESC)
-	protected String joinKeys;
+    @Description(JOIN_KEY_DESC)
+    protected String joinKeys;
 
-	@Nullable
-	@Description(SELECTED_FIELDS)
-	protected String selectedFields;
+    @Nullable
+    @Description(SELECTED_FIELDS)
+    protected String selectedFields;
 
-	@Nullable
-	@Description(REQUIRED_INPUTS_DESC)
-	protected String requiredInputs;
+    @Nullable
+    @Description(REQUIRED_INPUTS_DESC)
+    protected String requiredInputs;
 
-	@Nullable
-	protected final String keysToBeAppended;
+    @Nullable
+    protected final String keysToBeAppended;
 
-	public JoinerConfig() {
-		this.joinKeys = "";
-		this.selectedFields = "";
-		this.requiredInputs = null;
-		this.keysToBeAppended = null;
-	}
+    public JoinerConfig() {
+        this.joinKeys = "";
+        this.selectedFields = "";
+        this.requiredInputs = null;
+        this.keysToBeAppended = null;
+    }
 
-	@VisibleForTesting
-	JoinerConfig(String joinKeys, String selectedFields, String requiredInputs, String keysToBeAppended) {
-		this.joinKeys = joinKeys;
-		this.selectedFields = selectedFields;
-		this.requiredInputs = requiredInputs;
-		this.keysToBeAppended = keysToBeAppended;
-	}
+    @VisibleForTesting
+    JoinerConfig(String joinKeys, String selectedFields, String requiredInputs, String keysToBeAppended) {
+        this.joinKeys = joinKeys;
+        this.selectedFields = selectedFields;
+        this.requiredInputs = requiredInputs;
+        this.keysToBeAppended = keysToBeAppended;
+    }
 
-	@Nullable
-	public Integer getNumPartitions() {
-		return numPartitions;
-	}
+    @Nullable
+    public Integer getNumPartitions() {
+        return numPartitions;
+    }
 
-	public String getSelectedFields() {
-		return selectedFields;
-	}
+    public String getSelectedFields() {
+        return selectedFields;
+    }
 
-	public String getJoinKeys() {
-		return joinKeys;
-	}
+    public String getJoinKeys() {
+        return joinKeys;
+    }
 
-	@Nullable
-	public String getRequiredInputs() {
-		return requiredInputs;
-	}
+    @Nullable
+    public String getRequiredInputs() {
+        return requiredInputs;
+    }
 
-	@Nullable
-	public Map<String, String> getKeysToBeAppended() {
-		return null;
-	}
-	
-	public Map<String, List<String>> getPerStageJoinKeys() {
-		Map<String, List<String>> stageToKey = new HashMap<>();
+    @Nullable
+    public Map<String, String> getKeysToBeAppended() {
+        return null;
+    }
 
-		if (Strings.isNullOrEmpty(joinKeys)) {
-			throw new IllegalArgumentException("Join keys can not be empty");
-		}
+    public Map<String, List<String>> getPerStageJoinKeys() {
+        Map<String, List<String>> stageToKey = new HashMap<>();
 
-		Iterable<String> multipleJoinKeys = Splitter.on('&').trimResults().omitEmptyStrings().split(joinKeys);
+        if (Strings.isNullOrEmpty(joinKeys)) {
+            throw new IllegalArgumentException("Join keys can not be empty");
+        }
 
-		if (Iterables.isEmpty(multipleJoinKeys)) {
-			throw new IllegalArgumentException("Join keys can not be empty.");
-		}
+        Iterable<String> multipleJoinKeys = Splitter.on('&').trimResults().omitEmptyStrings().split(joinKeys);
 
-		int numJoinKeys = 0;
-		for (String singleJoinKey : multipleJoinKeys) {
-			KeyValueListParser kvParser = new KeyValueListParser("\\s*=\\s*", "\\.");
-			Iterable<KeyValue<String, String>> keyValues = kvParser.parse(singleJoinKey);
-			if (numJoinKeys == 0) {
-				numJoinKeys = Iterables.size(keyValues);
-			} else if (numJoinKeys != Iterables.size(keyValues)) {
-				throw new IllegalArgumentException(
-						"There should be one join key from each of the stages. Please add join "
-								+ "keys for each stage.");
-			}
-			for (KeyValue<String, String> keyValue : keyValues) {
-				String stageName = keyValue.getKey();
-				String joinKey = keyValue.getValue();
-				if (!stageToKey.containsKey(stageName)) {
-					stageToKey.put(stageName, new ArrayList<String>());
-				}
-				stageToKey.get(stageName).add(joinKey);
-			}
-		}
-		return stageToKey;
-	}
+        if (Iterables.isEmpty(multipleJoinKeys)) {
+            throw new IllegalArgumentException("Join keys can not be empty.");
+        }
 
-	public Table<String, String, String> getPerStageSelectedFields() {
-		// table to store <stageName, oldFieldName, alias>
-		ImmutableTable.Builder<String, String, String> tableBuilder = new ImmutableTable.Builder<>();
-		
-		if (Strings.isNullOrEmpty(selectedFields)) {
-			selectedFields = ",";
-		}
+        int numJoinKeys = 0;
+        for (String singleJoinKey : multipleJoinKeys) {
+            KeyValueListParser kvParser = new KeyValueListParser("\\s*=\\s*", "\\.");
+            Iterable<KeyValue<String, String>> keyValues = kvParser.parse(singleJoinKey);
+            if (numJoinKeys == 0) {
+                numJoinKeys = Iterables.size(keyValues);
+            } else if (numJoinKeys != Iterables.size(keyValues)) {
+                throw new IllegalArgumentException(
+                        "There should be one join key from each of the stages. Please add join "
+                                + "keys for each stage.");
+            }
+            for (KeyValue<String, String> keyValue : keyValues) {
+                String stageName = keyValue.getKey();
+                String joinKey = keyValue.getValue();
+                if (!stageToKey.containsKey(stageName)) {
+                    stageToKey.put(stageName, new ArrayList<String>());
+                }
+                stageToKey.get(stageName).add(joinKey);
+            }
+        }
+        return stageToKey;
+    }
 
-		for (String selectedField : Splitter.on(',').trimResults().omitEmptyStrings().split(selectedFields)) {
-			Iterable<String> stageOldNameAliasPair = Splitter.on(" as ").trimResults().omitEmptyStrings()
-					.split(selectedField);
-			Iterable<String> stageOldNamePair = Splitter.on('.').trimResults().omitEmptyStrings()
-					.split(Iterables.get(stageOldNameAliasPair, 0));
+    public Table<String, String, String> getPerStageSelectedFields() {
+        // table to store <stageName, oldFieldName, alias>
+        ImmutableTable.Builder<String, String, String> tableBuilder = new ImmutableTable.Builder<>();
 
-			if (!getIsDynamicSchema() && Iterables.size(stageOldNamePair) != 2) {
-				throw new IllegalArgumentException(String.format("Invalid syntax. Selected Fields must be of syntax "
-						+ "<stageName>.<oldFieldName> as <alias>, but found %s", selectedField));
-			}
+        if (Strings.isNullOrEmpty(selectedFields)) {
+            selectedFields = ",";
+        }
 
-			String stageName = Iterables.get(stageOldNamePair, 0);
-			String oldFieldName = Iterables.get(stageOldNamePair, 1);
+        for (String selectedField : Splitter.on(',').trimResults().omitEmptyStrings().split(selectedFields)) {
+            Iterable<String> stageOldNameAliasPair = Splitter.on(" as ").trimResults().omitEmptyStrings()
+                    .split(selectedField);
+            Iterable<String> stageOldNamePair = Splitter.on('.').trimResults().omitEmptyStrings()
+                    .split(Iterables.get(stageOldNameAliasPair, 0));
 
-			// if alias is not present in selected fields, use original field name as alias
-			String alias = isAliasPresent(stageOldNameAliasPair) ? oldFieldName
-					: Iterables.get(stageOldNameAliasPair, 1);
-			tableBuilder.put(stageName, oldFieldName, alias);
-		}
-		return tableBuilder.build();
-	}
+            if (!getIsDynamicSchema() && Iterables.size(stageOldNamePair) != 2) {
+                throw new IllegalArgumentException(String.format("Invalid syntax. Selected Fields must be of syntax "
+                        + "<stageName>.<oldFieldName> as <alias>, but found %s", selectedField));
+            }
 
-	protected boolean isAliasPresent(Iterable<String> stageOldNameAliasPair) {
-		return Iterables.size(stageOldNameAliasPair) == 1;
-	}
+            String stageName = Iterables.get(stageOldNamePair, 0);
+            String oldFieldName = Iterables.get(stageOldNamePair, 1);
 
-	public Set<String> getInputs() {
-		if (!Strings.isNullOrEmpty(requiredInputs)) {
-			return ImmutableSet.copyOf(Splitter.on(',').trimResults().omitEmptyStrings().split(requiredInputs));
-		}
-		return ImmutableSet.of();
-	}
+            // if alias is not present in selected fields, use original field name as alias
+            String alias = isAliasPresent(stageOldNameAliasPair) ? oldFieldName
+                    : Iterables.get(stageOldNameAliasPair, 1);
+            tableBuilder.put(stageName, oldFieldName, alias);
+        }
+        return tableBuilder.build();
+    }
 
-	public Boolean getIsDynamicSchema() {
-		return false;
-	}
+    protected boolean isAliasPresent(Iterable<String> stageOldNameAliasPair) {
+        return Iterables.size(stageOldNameAliasPair) == 1;
+    }
+
+    public Set<String> getInputs() {
+        if (!Strings.isNullOrEmpty(requiredInputs)) {
+            return ImmutableSet.copyOf(Splitter.on(',').trimResults().omitEmptyStrings().split(requiredInputs));
+        }
+        return ImmutableSet.of();
+    }
+
+    public Boolean getIsDynamicSchema() {
+        return false;
+    }
 }

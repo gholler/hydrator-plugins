@@ -1,4 +1,4 @@
-/*
+    /*
  * Copyright © 2016 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -19,12 +19,14 @@ import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
 
 /**
+ * 
  * @author bhupesh.goel
  *
+ * @param <T>
  */
 public interface TransformFunction<T> {
 
-	T applyFunction(StructuredRecord record);
-	
-	Schema getOutputSchema();
+    T applyFunction(StructuredRecord record);
+
+    Schema getOutputSchema();
 }

@@ -15,13 +15,13 @@
  */
 package com.guavus.featureengineering.cdap.plugin.transform.function;
 
+import co.cask.cdap.api.data.format.StructuredRecord;
+import co.cask.cdap.api.data.schema.Schema;
+
 import org.joda.time.DateTime;
 import org.joda.time.Minutes;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
-
-import co.cask.cdap.api.data.format.StructuredRecord;
-import co.cask.cdap.api.data.schema.Schema;
 
 /**
  * @author bhupesh.goel
@@ -29,47 +29,47 @@ import co.cask.cdap.api.data.schema.Schema;
  */
 public class TimeDiffInMin implements TransformFunction<Integer> {
 
-	private final String[] fieldName;
-	private final Schema outputSchema;
+    private final String[] fieldName;
+    private final Schema outputSchema;
 
-	/**
-	 * 
-	 */
-	public TimeDiffInMin(String[] fieldName, Schema[] fieldSchemas) {
-		this.fieldName = fieldName;
-		boolean isNullable = false;
-		for (Schema schema : fieldSchemas) {
-			if (schema.isNullable()) {
-				isNullable = true;
-				break;
-			}
-		}
-		this.outputSchema = isNullable ? Schema.nullableOf(Schema.of(Schema.Type.INT)) : Schema.of(Schema.Type.INT);
-	}
+    /**
+     * 
+     */
+    public TimeDiffInMin(String[] fieldName, Schema[] fieldSchemas) {
+        this.fieldName = fieldName;
+        boolean isNullable = false;
+        for (Schema schema : fieldSchemas) {
+            if (schema.isNullable()) {
+                isNullable = true;
+                break;
+            }
+        }
+        this.outputSchema = isNullable ? Schema.nullableOf(Schema.of(Schema.Type.INT)) : Schema.of(Schema.Type.INT);
+    }
 
-	@Override
-	public Integer applyFunction(StructuredRecord record) {
-		Object val1 = record.get(fieldName[0]);
-		if (val1 == null) {
-			return null;
-		}
-		Object val2 = record.get(fieldName[1]);
-		if (val2 == null) {
-			return null;
-		}
-		DateTimeFormatter formatter = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC();
+    @Override
+    public Integer applyFunction(StructuredRecord record) {
+        Object val1 = record.get(fieldName[0]);
+        if (val1 == null) {
+            return null;
+        }
+        Object val2 = record.get(fieldName[1]);
+        if (val2 == null) {
+            return null;
+        }
+        DateTimeFormatter formatter = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC();
 
-		String dateInString1 = val1.toString();
-		String dateInString2 = val2.toString();
+        String dateInString1 = val1.toString();
+        String dateInString2 = val2.toString();
 
-		DateTime dt1 = formatter.parseDateTime(dateInString1);
-		DateTime dt2 = formatter.parseDateTime(dateInString2);
-		return Minutes.minutesBetween(dt1, dt2).getMinutes();
-	}
+        DateTime dt1 = formatter.parseDateTime(dateInString1);
+        DateTime dt2 = formatter.parseDateTime(dateInString2);
+        return Minutes.minutesBetween(dt1, dt2).getMinutes();
+    }
 
-	@Override
-	public Schema getOutputSchema() {
-		return outputSchema;
-	}
+    @Override
+    public Schema getOutputSchema() {
+        return outputSchema;
+    }
 
 }

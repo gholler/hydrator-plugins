@@ -15,10 +15,6 @@
  */
 package com.guavus.featureengineering.cdap.plugin.transform;
 
-import javax.ws.rs.Path;
-
-import com.guavus.featureengineering.cdap.plugin.transform.config.RowTransformConfig;
-
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
@@ -27,6 +23,10 @@ import co.cask.cdap.api.annotation.PluginInput;
 import co.cask.cdap.api.annotation.PluginOutput;
 import co.cask.cdap.api.data.schema.Schema;
 
+import com.guavus.featureengineering.cdap.plugin.transform.config.RowTransformConfig;
+
+import javax.ws.rs.Path;
+
 /**
  * @author bhupesh.goel
  *
@@ -34,33 +34,36 @@ import co.cask.cdap.api.data.schema.Schema;
 @Plugin(type = "transform")
 @Name("RowTransform")
 @Description("Executes transform primitives to add new columns in record.")
-@PluginInput(type = { "datetime", "datetime", "datetime", "datetime", "string", "string", "double:int:long:float", "string string" })
+@PluginInput(type = { "datetime", "datetime", "datetime", "datetime", "string", "string", "double:int:long:float",
+        "string string" })
 @PluginOutput(type = { "int", "int", "int", "int", "int", "int", "double", "int" })
-@PluginFunction(function = { "day", "year", "month", "weekday", "numwords", "numcharacters", "plusonelog", "timediffinmin" })
+@PluginFunction(
+        function = { "day", "year", "month", "weekday", "numwords", "numcharacters", "plusonelog", "timediffinmin" })
 public class RowTransform extends RowTransformBase {
 
-	private final RowTransformConfig conf;
-	/**
-	 * @param conf
-	 */
-	public RowTransform(RowTransformConfig conf) {
-		super(conf);
-		this.conf = conf;
-	}
+    private final RowTransformConfig conf;
 
-	@Path("outputSchema")
-	public Schema getOutputSchema(GetSchemaRequest request) {
-		return getStaticOutputSchema(request.inputSchema, request.getPrimitives());
-	}
+    /**
+     * @param conf
+     */
+    public RowTransform(RowTransformConfig conf) {
+        super(conf);
+        this.conf = conf;
+    }
 
-	/**
-	 * Endpoint request for output schema.
-	 */
-	public static class GetSchemaRequest extends RowTransformConfig {
-		/**
-		 * 
-		 */
-		private static final long serialVersionUID = 931309960123672568L;
-		private Schema inputSchema;
-	}
+    @Path("outputSchema")
+    public Schema getOutputSchema(GetSchemaRequest request) {
+        return getStaticOutputSchema(request.inputSchema, request.getPrimitives());
+    }
+
+    /**
+     * Endpoint request for output schema.
+     */
+    public static class GetSchemaRequest extends RowTransformConfig {
+        /**
+         * 
+         */
+        private static final long serialVersionUID = 931309960123672568L;
+        private Schema inputSchema;
+    }
 }

@@ -15,12 +15,12 @@
  */
 package com.guavus.featureengineering.cdap.plugin.batch.aggregator.function;
 
-import java.util.HashSet;
-import java.util.Set;
-
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.hydrator.plugin.batch.aggregator.function.AggregateFunction;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * @author bhupesh.goel
@@ -28,39 +28,39 @@ import co.cask.hydrator.plugin.batch.aggregator.function.AggregateFunction;
  */
 public class NUniq implements AggregateFunction<Integer> {
 
-	private final String fieldName;
-	private final Schema outputSchema;
-	private Set<String> uniqueSet;
+    private final String fieldName;
+    private final Schema outputSchema;
+    private Set<String> uniqueSet;
 
-	public NUniq(String fieldName, Schema fieldSchema) {
-		this.fieldName = fieldName;
-		boolean isNullable = fieldSchema.isNullable();
-		outputSchema = isNullable ? Schema.nullableOf(Schema.of(Schema.Type.INT)) : Schema.of(Schema.Type.INT);
-	}
+    public NUniq(String fieldName, Schema fieldSchema) {
+        this.fieldName = fieldName;
+        boolean isNullable = fieldSchema.isNullable();
+        outputSchema = isNullable ? Schema.nullableOf(Schema.of(Schema.Type.INT)) : Schema.of(Schema.Type.INT);
+    }
 
-	@Override
-	public void beginFunction() {
-		uniqueSet = new HashSet<String>();
-	}
+    @Override
+    public void beginFunction() {
+        uniqueSet = new HashSet<String>();
+    }
 
-	@Override
-	public void operateOn(StructuredRecord record) {
-		Object val = record.get(fieldName);
-		if (val == null) {
-			return;
-		}
-		String input = val.toString();
-		uniqueSet.add(input.toLowerCase());
-	}
+    @Override
+    public void operateOn(StructuredRecord record) {
+        Object val = record.get(fieldName);
+        if (val == null) {
+            return;
+        }
+        String input = val.toString();
+        uniqueSet.add(input.toLowerCase());
+    }
 
-	@Override
-	public Integer getAggregate() {
-		return uniqueSet.size();
-	}
+    @Override
+    public Integer getAggregate() {
+        return uniqueSet.size();
+    }
 
-	@Override
-	public Schema getOutputSchema() {
-		return outputSchema;
-	}
+    @Override
+    public Schema getOutputSchema() {
+        return outputSchema;
+    }
 
 }
