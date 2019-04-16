@@ -627,7 +627,7 @@
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
-        <artifactId>spark-streaming-twitter_2.10</artifactId>
+        <artifactId>spark-streaming-twitter_2.11</artifactId>
         <version>1.6.2</version>
       </dependency>
       <dependency>
