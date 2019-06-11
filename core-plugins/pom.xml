@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Copyright © 2015-2016 Cask Data, Inc.
+  Copyright © 2015-2019 Cask Data, Inc.
 
   Licensed under the Apache License, Version 2.0 (the "License"); you may not
   use this file except in compliance with the License. You may obtain a copy of
@@ -22,8 +22,8 @@
 
   <parent>
     <artifactId>hydrator-plugins</artifactId>
-    <groupId>co.cask.hydrator</groupId>
-    <version>2.2.0-SNAPSHOT</version>
+    <groupId>io.cdap.plugin</groupId>
+    <version>2.3.0-SNAPSHOT</version>
   </parent>
 
   <name>Hydrator Core Plugins</name>
@@ -41,42 +41,44 @@
       <artifactId>guava</artifactId>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>hydrator-test</artifactId>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-etl-api</artifactId>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-formats</artifactId>
     </dependency>
     <dependency>
-      <groupId>co.cask.hydrator</groupId>
+      <groupId>io.cdap.plugin</groupId>
+      <artifactId>format-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.cdap.plugin</groupId>
       <artifactId>hydrator-common</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-data-pipeline</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-minicluster</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>com.google.protobuf</groupId>
+          <artifactId>protobuf-java</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.avro</groupId>
-      <artifactId>avro</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.avro</groupId>
-      <artifactId>avro-mapred</artifactId>
-      <classifier>hadoop2</classifier>
     </dependency>
     <dependency>
       <groupId>commons-lang</groupId>
@@ -106,17 +108,6 @@
     </dependency>
     <!-- End for EMail -->
     <dependency>
-      <groupId>org.apache.parquet</groupId>
-      <artifactId>parquet-avro</artifactId>
-      <version>1.8.1</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.avro</groupId>
-          <artifactId>avro</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
       <groupId>net.sf.uadetector</groupId>
       <artifactId>uadetector-resources</artifactId>
       <version>2014.04</version>
@@ -139,6 +130,12 @@
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>com.google.protobuf</groupId>
+          <artifactId>protobuf-java</artifactId>
+        </exclusion>
+      </exclusions>
       <classifier>tests</classifier>
       <version>${hadoop.version}</version>
       <scope>test</scope>
@@ -160,15 +157,46 @@
       <version>1.2.0</version>
     </dependency>
     <dependency>
-      <groupId>org.apache.orc</groupId>
-      <artifactId>orc-mapreduce</artifactId>
-      <version>1.1.0</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-hdfs</artifactId>
-        </exclusion>
-      </exclusions>
+      <groupId>io.cdap.plugin</groupId>
+      <artifactId>format-avro</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.cdap.plugin</groupId>
+      <artifactId>format-blob</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.cdap.plugin</groupId>
+      <artifactId>format-delimited</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.cdap.plugin</groupId>
+      <artifactId>format-json</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.cdap.plugin</groupId>
+      <artifactId>format-orc</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.cdap.plugin</groupId>
+      <artifactId>format-parquet</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.cdap.plugin</groupId>
+      <artifactId>format-text</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
@@ -182,21 +210,14 @@
         <configuration>
           <instructions>
             <_exportcontents>
-              co.cask.hydrator.plugin.alert.*;
-              co.cask.hydrator.plugin.batch.*;
-              co.cask.hydrator.plugin.common;
-              co.cask.hydrator.plugin.realtime.*;
-              co.cask.hydrator.plugin.streaming.*;
-              co.cask.hydrator.plugin.transform.*;
-              co.cask.hydrator.plugin.validator.*;
-              co.cask.hydrator.plugin.error.*;
-              org.apache.avro.mapred.*;
-              org.apache.avro.mapreduce;
-              org.apache.parquet.avro.*;
-              org.apache.parquet.hadoop.*;
-              org.apache.orc.*;
-              <!-- Used by S3 source/sink -->
-              org.apache.http.*
+              io.cdap.plugin.*;
+              io.cdap.plugin.batch.*;
+              io.cdap.plugin.common;
+              io.cdap.plugin.realtime.*;
+              io.cdap.plugin.streaming.*;
+              io.cdap.plugin.transform.*;
+              io.cdap.plugin.validator.*;
+              io.cdap.plugin.error.*
             </_exportcontents>
             <Embed-Dependency>*;inline=false;scope=compile</Embed-Dependency>
             <Embed-Transitive>true</Embed-Transitive>
@@ -213,7 +234,7 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>co.cask</groupId>
+        <groupId>io.cdap</groupId>
         <artifactId>cdap-maven-plugin</artifactId>
       </plugin>
     </plugins>

@@ -10,7 +10,6 @@ This project is a collection of useful transformations of data. These plugins ar
 - CSV Formatter
 - JSON Parser
 - Clone Record
-- Stream Formatter
 - Compressor
 - Decompressor
 - Encoder
@@ -24,13 +23,13 @@ Follow these instructions to build and deploy Hydrator transform plugins.
 
 Prerequisites
 -------------
-To use plugins, you must have CDAP version 3.2.0 or later. You can download CDAP Standalone that includes Hydrator `here <http://cask.co/downloads>`__.
+To use plugins, you must have CDAP version 3.2.0 or later. You can download CDAP Standalone that includes Hydrator `here <http://cdap.io/downloads>`__.
  
 Build Plugins
 -------------
 You get started with Hydrator plugins by building directly from the latest source code::
 
-  git clone https://github.com/caskdata/hydrator-plugins.git
+  git clone https://github.com/cdapio/hydrator-plugins.git
   cd hydrator-plugins
   mvn clean package -pl transform-plugins -am
 
@@ -123,24 +122,6 @@ Clone Record
   Makes a copy of every input record received for a configured number of times on the output. This transform does not change any record fields or types. It's an identity transform.
 :Configuration:
   **copies:** Specifies the numbers of copies of the input record that are to be emitted
-
-Stream Formatter
-----------------
-:ID:
-  **StreamFormatter**
-:Type:
-  Transform
-:Mode:
-  Batch and
-  Realtime
-:Description:
-  Formats a Structured Record as Stream format. Plugin will convert the Structured Record to Stream format.
-  It will include a header and body configurations. The body of the Stream event can be either type CSV or JSON.
-:Configuration:
-  - **body:** Specifies the input Structured Record fields that should be included in the body of the Stream event
-  - **header:** Specifies the input Structured Record fields that should be included in the header of the Stream event
-  - **format:** Specifies the format of the body. Currently supported formats are JSON, CSV, TSV, and PSV
-  - **schema:** Specifies the output schema; the output schema can have only two fields: one of type ``STRING`` and the other of type ``MAP<STRING, STRING>``
 
 Compressor
 ----------
@@ -240,7 +221,7 @@ XMLToJSONConverter
 
 License and Trademarks
 ======================
-Copyright © 2016 Cask Data, Inc.
+Copyright © 2016-2019 Cask Data, Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 in compliance with the License. You may obtain a copy of the License at

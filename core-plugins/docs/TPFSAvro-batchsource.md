@@ -16,22 +16,22 @@ reads the newly-arrived files, performs data validation and cleansing, and then 
 
 Properties
 ----------
-**name:** Name of the TimePartitionedFileSet from which the records are to be read from. (Macro-enabled)
+**Dataset Name:** Name of the TimePartitionedFileSet from which the records are to be read from. (Macro-enabled)
 
-**schema:** The Avro schema of the record being read from the source as a JSON Object.
-
-**basePath:** Base path for the TimePartitionedFileSet. Defaults to the name of the
+**Dataset Base Path:** Base path for the TimePartitionedFileSet. Defaults to the name of the
 dataset. (Macro-enabled)
 
-**duration:** Size of the time window to read with each run of the pipeline. The format is
+**Duration:** Size of the time window to read with each run of the pipeline. The format is
 expected to be a number followed by an 's', 'm', 'h', or 'd' specifying the time unit, with
 's' for seconds, 'm' for minutes, 'h' for hours, and 'd' for days. For example, a value of
 '5m' means each run of the pipeline will read 5 minutes of events from the TPFS source. (Macro-enabled)
 
-**delay:** Optional delay for reading from TPFS source. The value must be of the same
+**Delay:** Optional delay for reading from TPFS source. The value must be of the same
 format as the duration value. For example, a duration of '5m' and a delay of '10m' means
 each run of the pipeline will read events 5 minutes of data from 15 minutes before its logical
 start time to 10 minutes before its logical start time. The default value is 0. (Macro-enabled)
+
+**Schema:** The Avro schema of the record being read from the source as a JSON Object.
 
 
 Example
@@ -39,25 +39,27 @@ Example
 This example reads from a TimePartitionedFileSet named 'webactivity', assuming the underlying
 files are in Avro format:
 
-    {
-        "name": "TPFSAvro",
-        "type": "batchsource",
-        "properties": {
-            "name": "webactivity",
-            "duration": "5m",
-            "delay": "1m",
-            "schema": "{
-                \"type\":\"record\",
-                \"name\":\"webactivity\",
-                \"fields\":[
-                    {\"name\":\"date\",\"type\":\"string\"},
-                    {\"name\":\"userid\",\"type\":\"long\"},
-                    {\"name\":\"action\",\"type\":\"string\"},
-                    {\"name\":\"item\",\"type\":\"string\"}
-                ]
-            }"
-        }
+```json
+{
+    "name": "TPFSAvro",
+    "type": "batchsource",
+    "properties": {
+        "name": "webactivity",
+        "duration": "5m",
+        "delay": "1m",
+        "schema": "{
+            \"type\":\"record\",
+            \"name\":\"webactivity\",
+            \"fields\":[
+                {\"name\":\"date\",\"type\":\"string\"},
+                {\"name\":\"userid\",\"type\":\"long\"},
+                {\"name\":\"action\",\"type\":\"string\"},
+                {\"name\":\"item\",\"type\":\"string\"}
+            ]
+        }"
     }
+}
+```
 
 TimePartitionedFileSets are partitioned by year, month, day, hour, and minute. Suppose the
 current run was scheduled to start at 10:00am on January 1, 2015. Since the 'delay'
@@ -70,11 +72,9 @@ will be read.
 The source will read the actual data using the given schema and will output records with
 this schema:
 
-    +=======================+
-    | field name  | type    |
-    +=======================+
-    | date        | string  |
-    | userid      | long    |
-    | action      | string  |
-    | item        | string  |
-    +=======================+
+| field name  | type    |
+| ----------- | ------- |
+| date        | string  |
+| userid      | long    |
+| action      | string  |
+| item        | string  |

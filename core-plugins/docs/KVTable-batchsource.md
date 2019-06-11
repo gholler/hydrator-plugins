@@ -15,13 +15,14 @@ you may want to periodically dump the contents of a KeyValueTable to a Table.
 
 Properties
 ----------
-**name:** KeyValueTable name. If the table does not already exist, it will be created. (Macro-enabled)
+**Table Name:** Name of the KeyValueTable to read from. If the table does not already exist, it will be created. (Macro-enabled)
 
 
 Example
 -------
 This example reads from a KeyValueTable named 'items':
 
+```json
     {
         "name": "KVTable",
         "type": "batchsource",
@@ -29,12 +30,11 @@ This example reads from a KeyValueTable named 'items':
             "name": "items"
         }
     }
+```
 
 It outputs records with this schema:
 
-    +====================+
-    | field name | type  |
-    +====================+
-    | key        | bytes |
-    | value      | bytes |
-    +====================+
+| field name | type  |
+| ---------- | ----- |
+| key        | bytes |
+| value      | bytes |
