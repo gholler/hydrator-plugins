@@ -34,7 +34,7 @@
     <module>format-common</module>
     <module>hbase-plugins</module>
     <module>hdfs-plugins</module>
-    <module>hive-plugins</module>
+    <!--module>hive-plugins</module>-->
     <module>http-plugins</module>
     <module>mongodb-plugins</module>
     <module>solrsearch-plugins</module>
@@ -100,7 +100,7 @@
     <commons-codec.version>1.10</commons-codec.version>
     <commons-httpclient.version>3.1</commons-httpclient.version>
     <commons-lang-version>2.6</commons-lang-version>
-    <cdap.version>5.1.206</cdap.version>
+    <cdap.version>5.1.207</cdap.version>
     <datastax.version>2.0.5</datastax.version>
     <dumbster.version>1.6</dumbster.version>
     <es.version>7.1.1</es.version>
