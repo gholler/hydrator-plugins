@@ -67,14 +67,25 @@
       <groupId>co.cask.http</groupId>
       <artifactId>netty-http</artifactId>
     </dependency>
-    <dependency>
+    <!--<dependency>
       <groupId>co.cask.cdap</groupId>
       <artifactId>hydrator-test</artifactId>
-    </dependency>
+    </dependency>-->
     <dependency>
       <groupId>co.cask.hydrator</groupId>
       <artifactId>hydrator-common</artifactId>
       <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <!-- change to hadoop-aws when hadoop dependency is updated to 2.6 -->
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-common</artifactId>
+      <version>3.1.1.3.1.0.0-78</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-mapreduce-client-core</artifactId>
+      <version>3.1.1.3.1.0.0-78</version>
     </dependency>
     <dependency>
       <groupId>co.cask.cdap</groupId>

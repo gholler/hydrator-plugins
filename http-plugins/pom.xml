@@ -40,10 +40,10 @@
       <groupId>co.cask.http</groupId>
       <artifactId>netty-http</artifactId>
     </dependency>
-    <dependency>
+    <!--<dependency>
       <groupId>co.cask.cdap</groupId>
       <artifactId>cdap-unit-test</artifactId>
-    </dependency>
+    </dependency>-->
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
@@ -57,10 +57,10 @@
       <artifactId>hydrator-common</artifactId>
       <version>${project.parent.version}</version>
     </dependency>
-    <dependency>
+    <!--<dependency>
       <groupId>co.cask.cdap</groupId>
       <artifactId>hydrator-test</artifactId>
-    </dependency>
+    </dependency>-->
   </dependencies>
 
   <build>

@@ -36,10 +36,10 @@
       <groupId>co.cask.cdap</groupId>
       <artifactId>cdap-formats</artifactId>
     </dependency>
-    <dependency>
+    <!--<dependency>
       <groupId>co.cask.cdap</groupId>
       <artifactId>hydrator-test</artifactId>
-    </dependency>
+    </dependency>-->
     <dependency>
       <groupId>co.cask.cdap</groupId>
       <artifactId>cdap-data-pipeline</artifactId>

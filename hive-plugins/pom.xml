@@ -39,10 +39,10 @@
       <groupId>co.cask.cdap</groupId>
       <artifactId>cdap-etl-api</artifactId>
     </dependency>
-    <dependency>
+    <!--<dependency>
       <groupId>co.cask.cdap</groupId>
       <artifactId>cdap-unit-test</artifactId>
-    </dependency>
+    </dependency>-->
     <dependency>
       <groupId>co.cask.hydrator</groupId>
       <artifactId>hydrator-common</artifactId>
