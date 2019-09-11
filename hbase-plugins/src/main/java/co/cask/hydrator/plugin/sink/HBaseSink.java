@@ -23,6 +23,7 @@ import co.cask.cdap.api.data.batch.Output;
 import co.cask.cdap.api.data.batch.OutputFormatProvider;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
+import co.cask.cdap.api.dataset.DatasetProperties;
 import co.cask.cdap.api.dataset.lib.KeyValue;
 import co.cask.cdap.api.dataset.table.Put;
 import co.cask.cdap.etl.api.Emitter;
@@ -31,6 +32,7 @@ import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.cdap.format.RecordPutTransformer;
+import co.cask.hydrator.common.Constants;
 import co.cask.hydrator.common.LineageRecorder;
 import co.cask.hydrator.common.ReferenceBatchSink;
 import co.cask.hydrator.common.SchemaValidator;
@@ -96,6 +98,10 @@ public class HBaseSink extends ReferenceBatchSink<StructuredRecord, NullWritable
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
+    pipelineConfigurer.createDataset(config.referenceName, Constants.EXTERNAL_DATASET_TYPE,
+            DatasetProperties.builder()
+                    .add(DatasetProperties.SCHEMA,pipelineConfigurer.getStageConfigurer().getInputSchema().toString())
+                    .addAll(config.getProperties().getProperties()).build());
     Preconditions.checkArgument(!Strings.isNullOrEmpty(config.rowField),
                                 "Row field must be given as a property.");
     Schema outputSchema =
