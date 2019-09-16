@@ -18,7 +18,7 @@
 [submodule "wrangler-transform"]
 	path = wrangler-transform
 	url = https://github.com/data-integrations/wrangler.git
-	branch = release/4.0
+	branch = v4.0.0
 [submodule "google-cloud"]
 	path = google-cloud
 	url = https://github.com/data-integrations/google-cloud
