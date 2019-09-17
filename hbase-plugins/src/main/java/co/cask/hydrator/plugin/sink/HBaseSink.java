@@ -100,7 +100,7 @@ public class HBaseSink extends ReferenceBatchSink<StructuredRecord, NullWritable
     super.configurePipeline(pipelineConfigurer);
     pipelineConfigurer.createDataset(config.referenceName, Constants.EXTERNAL_DATASET_TYPE,
             DatasetProperties.builder()
-                    .add(DatasetProperties.SCHEMA,pipelineConfigurer.getStageConfigurer().getInputSchema().toString())
+                    .add(DatasetProperties.SCHEMA, pipelineConfigurer.getStageConfigurer().getInputSchema().toString())
                     .addAll(config.getProperties().getProperties()).build());
     Preconditions.checkArgument(!Strings.isNullOrEmpty(config.rowField),
                                 "Row field must be given as a property.");
