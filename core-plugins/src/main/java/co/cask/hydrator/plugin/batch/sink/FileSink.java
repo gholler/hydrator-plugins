@@ -20,10 +20,14 @@ import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
+import co.cask.cdap.api.dataset.DatasetProperties;
+import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
+import co.cask.hydrator.common.Constants;
 import co.cask.hydrator.format.plugin.AbstractFileSink;
 import co.cask.hydrator.format.plugin.AbstractFileSinkConfig;
+import co.cask.hydrator.format.plugin.FileSinkProperties;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
@@ -52,6 +56,15 @@ public class FileSink extends AbstractFileSink<FileSink.Conf> {
     return config.getFSProperties();
   }
 
+  @Override
+  public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
+    ((FileSinkProperties) this.config).validate();
+    pipelineConfigurer.createDataset(config.getReferenceName(), Constants.EXTERNAL_DATASET_TYPE,
+            DatasetProperties.builder()
+                    .add(DatasetProperties.SCHEMA, pipelineConfigurer.getStageConfigurer().getInputSchema().toString())
+                    .addAll(config.getProperties().getProperties()).build());
+
+  }
   /**
    * Config for File Sink.
    */

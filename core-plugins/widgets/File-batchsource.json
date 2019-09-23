@@ -7,7 +7,7 @@
       "label": "Basic",
       "properties": [
         {
-          "widget-type": "textbox",
+          "widget-type": "dataset-selector",
           "label": "Reference Name",
           "name": "referenceName",
           "widget-attributes": {
