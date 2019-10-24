@@ -22,7 +22,7 @@
 [submodule "google-cloud"]
 	path = google-cloud
 	url = https://github.com/Guavus/google-cloud.git
-	branch = elease/build_guavus_0.11_5.1.213
+	branch = release/build_guavus_0.11_5.1.213
 [submodule "kafka-plugins"]
 	path = kafka-plugins
 	url = https://github.com/Guavus/kafka-plugins.git
