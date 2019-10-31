@@ -27,7 +27,7 @@
   <url>https://github.com/caskdata/hydrator-plugins</url>
 
   <modules>
-    <module>hydrator-common</module>
+    <!--<module>hydrator-common</module>
     <module>core-plugins</module>
     <module>cassandra-plugins</module>
     <module>database-plugins</module>
@@ -44,7 +44,8 @@
     <module>google-cloud</module>
     <module>kafka-plugins</module>
     <module>amazon-s3-plugins</module>
-    <module>condition-plugins</module>
+    <module>condition-plugins</module>-->
+    <module>flint-plugins</module>
   </modules>
 
   <licenses>
