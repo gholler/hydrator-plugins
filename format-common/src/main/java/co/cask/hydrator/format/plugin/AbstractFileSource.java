@@ -40,6 +40,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -63,6 +65,8 @@ import java.util.stream.Collectors;
 public abstract class AbstractFileSource<T extends PluginConfig & FileSourceProperties>
   extends BatchSource<NullWritable, StructuredRecord, StructuredRecord> {
   private final T config;
+
+  private static final Logger logger = LoggerFactory.getLogger(AbstractFileSource.class);
 
   protected AbstractFileSource(T config) {
     this.config = config;
@@ -103,6 +107,7 @@ public abstract class AbstractFileSource<T extends PluginConfig & FileSourceProp
 
     Job job = JobUtils.createInstance();
     Configuration conf = job.getConfiguration();
+    conf.set("fs.sftp.impl", "org.apache.hadoop.fs.sftp.SFTPFileSystem");
 
     Pattern pattern = config.getFilePattern();
     if (pattern != null) {
@@ -126,6 +131,7 @@ public abstract class AbstractFileSource<T extends PluginConfig & FileSourceProp
     }
 
     Path path = new Path(config.getPath());
+    logger.info("_________conf after setting the properties: {}", conf.toString());
     FileSystem pathFileSystem = FileSystem.get(path.toUri(), conf);
     FileStatus[] fileStatus = pathFileSystem.globStatus(path);
 
