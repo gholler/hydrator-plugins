@@ -77,7 +77,7 @@ public class HBaseSink extends ReferenceBatchSink<StructuredRecord, NullWritable
 
   @Override
   public void prepareRun(BatchSinkContext context) throws Exception {
-    config.referenceName = config.tableName;
+    setReferenceName();
     Job job;
     ClassLoader oldClassLoader = Thread.currentThread().getContextClassLoader();
     // Switch the context classloader to plugin class' classloader (PluginClassLoader) so that
@@ -105,27 +105,36 @@ public class HBaseSink extends ReferenceBatchSink<StructuredRecord, NullWritable
     Map<String, String> conf = new HashMap<>();
     if (!Strings.isNullOrEmpty(config.addProperties)) {
       for (KeyValue<String, String> keyVal : kvParser
-              .parse(config.addProperties)) {
+          .parse(config.addProperties)) {
         conf.put(keyVal.getKey(), keyVal.getValue());
       }
     }
     return conf;
   }
+
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
-    config.referenceName = config.tableName;
+    setReferenceName();
     pipelineConfigurer.createDataset(config.referenceName, Constants.EXTERNAL_DATASET_TYPE,
-            DatasetProperties.builder()
-                    .add(DatasetProperties.SCHEMA, pipelineConfigurer.getStageConfigurer().getInputSchema().toString())
-                    .addAll(config.getProperties().getProperties()).build());
+        DatasetProperties.builder()
+            .add(DatasetProperties.SCHEMA, pipelineConfigurer.getStageConfigurer().getInputSchema().toString())
+            .addAll(config.getProperties().getProperties()).build());
     Preconditions.checkArgument(!Strings.isNullOrEmpty(config.rowField),
-                                "Row field must be given as a property.");
+        "Row field must be given as a property.");
     Schema outputSchema =
-      SchemaValidator.validateOutputSchemaAndInputSchemaIfPresent(config.schema,
-                                                                  config.rowField, pipelineConfigurer);
+        SchemaValidator.validateOutputSchemaAndInputSchemaIfPresent(config.schema,
+            config.rowField, pipelineConfigurer);
     // NOTE: this is done only for testing, once CDAP-4575 is implemented, we can use this schema in initialize
     pipelineConfigurer.getStageConfigurer().setOutputSchema(outputSchema);
+  }
+
+  private void setReferenceName() {
+    if (config.tableName.contains(":")) {
+      config.referenceName = config.tableName.replace(":", "-");
+    } else {
+      config.referenceName = config.tableName;
+    }
   }
 
   private class HBaseOutputFormatProvider implements OutputFormatProvider {
@@ -142,10 +151,10 @@ public class HBaseSink extends ReferenceBatchSink<StructuredRecord, NullWritable
       conf.put(TableOutputFormat.QUORUM_ADDRESS, String.format("%s:%s:%s", zkQuorum, zkClientPort, zkNodeParent));
       conf.putAll(addProp);
       String[] serializationClasses = {
-        configuration.get("io.serializations"),
-        MutationSerialization.class.getName(),
-        ResultSerialization.class.getName(),
-        KeyValueSerialization.class.getName() };
+          configuration.get("io.serializations"),
+          MutationSerialization.class.getName(),
+          ResultSerialization.class.getName(),
+          KeyValueSerialization.class.getName()};
       conf.put("io.serializations", StringUtils.arrayToString(serializationClasses));
     }
 
@@ -165,11 +174,13 @@ public class HBaseSink extends ReferenceBatchSink<StructuredRecord, NullWritable
     super.initialize(context);
     // If a schema string is present in the properties, use that to construct the outputSchema and pass it to the
     // recordPutTransformer
+    setReferenceName();
     recordPutTransformer = new RecordPutTransformer(config.rowField, config.getSchema());
   }
 
   @Override
   public void transform(StructuredRecord input, Emitter<KeyValue<NullWritable, Mutation>> emitter) throws Exception {
+    setReferenceName();
     Put put = recordPutTransformer.toPut(input);
     org.apache.hadoop.hbase.client.Put hbasePut = new org.apache.hadoop.hbase.client.Put(put.getRow());
     for (Map.Entry<byte[], byte[]> entry : put.getValues().entrySet()) {
