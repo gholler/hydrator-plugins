@@ -54,6 +54,8 @@ public class HBaseConfig extends ReferencePluginConfig {
   @Macro
   public String zkClientPort;
 
+
+
   public HBaseConfig(String referenceName, String tableName, String rowField, @Nullable String schema) {
     super(referenceName);
     this.tableName = tableName;
