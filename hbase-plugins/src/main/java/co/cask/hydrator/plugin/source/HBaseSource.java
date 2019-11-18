@@ -43,6 +43,7 @@ import org.apache.hadoop.hbase.mapreduce.KeyValueSerialization;
 import org.apache.hadoop.hbase.mapreduce.MutationSerialization;
 import org.apache.hadoop.hbase.mapreduce.ResultSerialization;
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat;
+
 /**
  *
  */
@@ -60,7 +61,7 @@ public class HBaseSource extends ReferenceBatchSource<ImmutableBytesWritable, Re
 
   @Override
   public void prepareRun(BatchSourceContext context) throws Exception {
-    config.referenceName = config.tableName;
+    setReferenceName();
     Configuration conf = new Configuration();
     String ioSerializations = conf.get("io.serializations");
     conf.clear();
@@ -71,8 +72,8 @@ public class HBaseSource extends ReferenceBatchSource<ImmutableBytesWritable, Re
     conf.set("hbase.zookeeper.quorum", zkQuorum);
     conf.set("hbase.zookeeper.property.clientPort", zkClientPort);
     conf.setStrings(ioSerializations,
-                    MutationSerialization.class.getName(), ResultSerialization.class.getName(),
-                    KeyValueSerialization.class.getName());
+        MutationSerialization.class.getName(), ResultSerialization.class.getName(),
+        KeyValueSerialization.class.getName());
     LineageRecorder lineageRecorder = new LineageRecorder(context, config.referenceName);
     lineageRecorder.createExternalDataset(config.getSchema());
     context.setInput(Input.of(config.referenceName, new SourceInputFormatProvider(HBaseTableInputFormat.class, conf)));
@@ -82,11 +83,11 @@ public class HBaseSource extends ReferenceBatchSource<ImmutableBytesWritable, Re
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
     try {
-      config.referenceName = config.tableName;
+      setReferenceName();
       pipelineConfigurer.createDataset(config.referenceName, Constants.EXTERNAL_DATASET_TYPE,
-              DatasetProperties.builder()
-                      .add(DatasetProperties.SCHEMA, Schema.parseJson(config.schema).toString())
-                      .addAll(config.getProperties().getProperties()).build());
+          DatasetProperties.builder()
+              .add(DatasetProperties.SCHEMA, Schema.parseJson(config.schema).toString())
+              .addAll(config.getProperties().getProperties()).build());
 
       pipelineConfigurer.getStageConfigurer().setOutputSchema(Schema.parseJson(config.schema));
     } catch (Exception e) {
@@ -97,16 +98,25 @@ public class HBaseSource extends ReferenceBatchSource<ImmutableBytesWritable, Re
   @Override
   public void initialize(BatchRuntimeContext context) throws Exception {
     super.initialize(context);
+    setReferenceName();
     Schema schema = Schema.parseJson(config.schema);
     rowRecordTransformer = new RowRecordTransformer(schema, config.rowField);
   }
 
+  private void setReferenceName() {
+    if (config.tableName.contains(":")) {
+      config.referenceName = config.tableName.replace(":", "-");
+    } else {
+      config.referenceName = config.tableName;
+    }
+  }
+
   @Override
   public void transform(KeyValue<ImmutableBytesWritable, Result> input, Emitter<StructuredRecord> emitter)
-    throws Exception {
-    config.referenceName = config.tableName;
+      throws Exception {
+    setReferenceName();
     Row cdapRow = new co.cask.cdap.api.dataset.table.Result(
-      input.getValue().getRow(), input.getValue().getFamilyMap(config.columnFamily.getBytes()));
+        input.getValue().getRow(), input.getValue().getFamilyMap(config.columnFamily.getBytes()));
     StructuredRecord record = rowRecordTransformer.toRecord(cdapRow);
     emitter.emit(record);
   }
