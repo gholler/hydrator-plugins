@@ -7,12 +7,15 @@
       "label": "HBase Configuration",
       "properties": [
         {
-          "widget-type": "dataset-selector",
+          "widget-type": "hidden",
           "label": "Reference Name",
-          "name": "referenceName"
+          "name": "referenceName",
+          "widget-attributes": {
+            "default":"ref_name_hbase_src"
+          }
         },
         {
-          "widget-type": "textbox",
+          "widget-type": "dataset-selector",
           "label": "HBase Table Name",
           "name": "tableName"
         },
