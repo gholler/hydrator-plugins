@@ -22,12 +22,14 @@ import co.cask.cdap.api.annotation.Plugin;
 import co.cask.cdap.api.data.batch.Input;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
+import co.cask.cdap.api.dataset.DatasetProperties;
 import co.cask.cdap.api.dataset.lib.KeyValue;
 import co.cask.cdap.api.dataset.table.Row;
 import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
+import co.cask.hydrator.common.Constants;
 import co.cask.hydrator.common.LineageRecorder;
 import co.cask.hydrator.common.ReferenceBatchSource;
 import co.cask.hydrator.common.SourceInputFormatProvider;
@@ -41,7 +43,6 @@ import org.apache.hadoop.hbase.mapreduce.KeyValueSerialization;
 import org.apache.hadoop.hbase.mapreduce.MutationSerialization;
 import org.apache.hadoop.hbase.mapreduce.ResultSerialization;
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat;
-
 /**
  *
  */
@@ -59,10 +60,10 @@ public class HBaseSource extends ReferenceBatchSource<ImmutableBytesWritable, Re
 
   @Override
   public void prepareRun(BatchSourceContext context) throws Exception {
+    config.referenceName = config.tableName;
     Configuration conf = new Configuration();
     String ioSerializations = conf.get("io.serializations");
     conf.clear();
-
     conf.set(TableInputFormat.INPUT_TABLE, config.tableName);
     conf.set(TableInputFormat.SCAN_COLUMN_FAMILY, config.columnFamily);
     String zkQuorum = !Strings.isNullOrEmpty(config.zkQuorum) ? config.zkQuorum : "localhost";
@@ -81,6 +82,12 @@ public class HBaseSource extends ReferenceBatchSource<ImmutableBytesWritable, Re
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
     try {
+      config.referenceName = config.tableName;
+      pipelineConfigurer.createDataset(config.referenceName, Constants.EXTERNAL_DATASET_TYPE,
+              DatasetProperties.builder()
+                      .add(DatasetProperties.SCHEMA, Schema.parseJson(config.schema).toString())
+                      .addAll(config.getProperties().getProperties()).build());
+
       pipelineConfigurer.getStageConfigurer().setOutputSchema(Schema.parseJson(config.schema));
     } catch (Exception e) {
       throw new IllegalArgumentException("Invalid output schema: " + e.getMessage(), e);
@@ -97,6 +104,7 @@ public class HBaseSource extends ReferenceBatchSource<ImmutableBytesWritable, Re
   @Override
   public void transform(KeyValue<ImmutableBytesWritable, Result> input, Emitter<StructuredRecord> emitter)
     throws Exception {
+    config.referenceName = config.tableName;
     Row cdapRow = new co.cask.cdap.api.dataset.table.Result(
       input.getValue().getRow(), input.getValue().getFamilyMap(config.columnFamily.getBytes()));
     StructuredRecord record = rowRecordTransformer.toRecord(cdapRow);

@@ -7,9 +7,12 @@
       "label": "HBase Configuration",
       "properties": [
         {
-          "widget-type": "textbox",
+          "widget-type": "hidden",
           "label": "Reference Name",
-          "name": "referenceName"
+          "name": "referenceName",
+          "widget-attributes": {
+            "default":"ref_hbase_sink"
+          }
         },
         {
           "widget-type": "textbox",
@@ -40,6 +43,16 @@
           "widget-type": "textbox",
           "label": "Parent Node of HBase in Zookeeper",
           "name": "zkNodeParent"
+        },
+        {
+          "label": "Additional Properties",
+          "name": "addProperties",
+          "widget-type": "keyvalue",
+          "widget-attributes": {
+            "delimiter": ";",
+            "kv-delimiter": ",",
+            "value-placeholder": "Property values"
+          }
         }
       ]
     }

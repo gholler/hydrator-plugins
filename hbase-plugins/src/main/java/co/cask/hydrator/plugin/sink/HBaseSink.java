@@ -33,6 +33,7 @@ import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.cdap.format.RecordPutTransformer;
 import co.cask.hydrator.common.Constants;
+import co.cask.hydrator.common.KeyValueListParser;
 import co.cask.hydrator.common.LineageRecorder;
 import co.cask.hydrator.common.ReferenceBatchSink;
 import co.cask.hydrator.common.SchemaValidator;
@@ -53,7 +54,9 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.util.StringUtils;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 /**
@@ -74,6 +77,7 @@ public class HBaseSink extends ReferenceBatchSink<StructuredRecord, NullWritable
 
   @Override
   public void prepareRun(BatchSinkContext context) throws Exception {
+    config.referenceName = config.tableName;
     Job job;
     ClassLoader oldClassLoader = Thread.currentThread().getContextClassLoader();
     // Switch the context classloader to plugin class' classloader (PluginClassLoader) so that
@@ -93,11 +97,24 @@ public class HBaseSink extends ReferenceBatchSink<StructuredRecord, NullWritable
     LineageRecorder lineageRecorder = new LineageRecorder(context, config.referenceName);
     lineageRecorder.createExternalDataset(config.getSchema());
     context.addOutput(Output.of(config.referenceName, new HBaseOutputFormatProvider(config, conf)));
+    context.getDataset(config.referenceName);
   }
 
+  public Map<String, String> getAdditionalProperties() {
+    KeyValueListParser kvParser = new KeyValueListParser("\\s*;\\s*", ",");
+    Map<String, String> conf = new HashMap<>();
+    if (!Strings.isNullOrEmpty(config.addProperties)) {
+      for (KeyValue<String, String> keyVal : kvParser
+              .parse(config.addProperties)) {
+        conf.put(keyVal.getKey(), keyVal.getValue());
+      }
+    }
+    return conf;
+  }
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
+    config.referenceName = config.tableName;
     pipelineConfigurer.createDataset(config.referenceName, Constants.EXTERNAL_DATASET_TYPE,
             DatasetProperties.builder()
                     .add(DatasetProperties.SCHEMA, pipelineConfigurer.getStageConfigurer().getInputSchema().toString())
@@ -117,11 +134,13 @@ public class HBaseSink extends ReferenceBatchSink<StructuredRecord, NullWritable
 
     HBaseOutputFormatProvider(HBaseSinkConfig config, Configuration configuration) {
       this.conf = new HashMap<>();
+      Map<String, String> addProp = getAdditionalProperties();
       conf.put(TableOutputFormat.OUTPUT_TABLE, config.tableName);
       String zkQuorum = !Strings.isNullOrEmpty(config.zkQuorum) ? config.zkQuorum : "localhost";
       String zkClientPort = !Strings.isNullOrEmpty(config.zkClientPort) ? config.zkClientPort : "2181";
       String zkNodeParent = !Strings.isNullOrEmpty(config.zkNodeParent) ? config.zkNodeParent : "/hbase";
       conf.put(TableOutputFormat.QUORUM_ADDRESS, String.format("%s:%s:%s", zkQuorum, zkClientPort, zkNodeParent));
+      conf.putAll(addProp);
       String[] serializationClasses = {
         configuration.get("io.serializations"),
         MutationSerialization.class.getName(),
@@ -166,6 +185,11 @@ public class HBaseSink extends ReferenceBatchSink<StructuredRecord, NullWritable
     @Description("Parent Node of HBase in Zookeeper. Defaults to '/hbase'")
     @Nullable
     private String zkNodeParent;
+
+    @Nullable
+    @Name("addProperties")
+    @Description("Additional properties that the user may want to specify.")
+    private String addProperties;
 
     public HBaseSinkConfig(String tableName, String rowField, @Nullable String schema) {
       super(String.format("HBase_%s", tableName), tableName, rowField, schema);
