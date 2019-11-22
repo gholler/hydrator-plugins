@@ -42,7 +42,7 @@ import javax.annotation.Nullable;
  */
 public class OrcToStructuredTransformer extends RecordConverter<OrcStruct, StructuredRecord> {
 
-  private final Map<Integer, Schema> schemaCache = Maps.newHashMap();
+  private static final Map<Integer, Schema> schemaCache = Maps.newHashMap();
 
   public StructuredRecord transform(OrcStruct orcStruct) throws IOException {
     TypeDescription orcRecordScehma = orcStruct.getSchema();
@@ -67,7 +67,7 @@ public class OrcToStructuredTransformer extends RecordConverter<OrcStruct, Struc
     return builder;
   }
 
-  public Schema convertSchema(TypeDescription schema) {
+  public static Schema convertSchema(TypeDescription schema) {
     int hashCode = schema.hashCode();
     Schema structuredSchema;
 
@@ -115,15 +115,15 @@ public class OrcToStructuredTransformer extends RecordConverter<OrcStruct, Struc
   }
 
   // TODO: add array support
-  private Schema toSchema(TypeDescription schema) {
+  private static Schema toSchema(TypeDescription schema) {
     List<Schema.Field> fields = Lists.newArrayList();
     List<String> fieldNames = schema.getFieldNames();
     int index = 0;
     for (TypeDescription fieldSchema : schema.getChildren()) {
       String name = fieldNames.get(index);
-      if (!fieldSchema.getCategory().isPrimitive()) {
+      if (!fieldSchema.getCategory().isPrimitive() && !fieldSchema.getCategory().equals(TypeDescription.Category.LIST)) {
         throw new IllegalArgumentException(String.format(
-                "Schema contains field '%s' with complex type %s. Only primitive types are supported.",
+                "Schema contains field '%s' with complex type %s. Only primitive types and ArrayType are supported.",
                 name, fieldSchema));
       }
       fields.add(Schema.Field.of(name, getType(fieldSchema)));
@@ -133,7 +133,7 @@ public class OrcToStructuredTransformer extends RecordConverter<OrcStruct, Struc
   }
 
   // TODO: add array support
-  private Schema getType(TypeDescription typeDescription) {
+  private static Schema getType(TypeDescription typeDescription) {
     switch (typeDescription.getCategory()) {
       case BOOLEAN:
         return Schema.nullableOf(Schema.of(Schema.Type.BOOLEAN));
@@ -150,12 +150,21 @@ public class OrcToStructuredTransformer extends RecordConverter<OrcStruct, Struc
         return Schema.nullableOf(Schema.of(Schema.Type.DOUBLE));
       case CHAR:
       case STRING:
+         return Schema.nullableOf(Schema.of(Schema.Type.STRING));
       case VARCHAR:
         return Schema.nullableOf(Schema.of(Schema.Type.STRING));
       case BINARY:
         return Schema.nullableOf(Schema.of(Schema.Type.BYTES));
       case MAP:
-      case LIST:
+      case LIST: {
+          List<TypeDescription> typeDescriptionList = typeDescription.getChildren();
+          if(typeDescriptionList != null && !typeDescriptionList.isEmpty()) {
+              System.out.println("Array Type Category : " + typeDescriptionList.get(0).getCategory());
+              return Schema.arrayOf(getType(typeDescriptionList.get(0)));
+          } else {
+              throw new IllegalArgumentException("Not a valid arrayType");
+          }
+      }
       case UNION:
       case STRUCT:
       case TIMESTAMP:

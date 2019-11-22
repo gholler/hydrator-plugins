@@ -18,6 +18,7 @@ package co.cask.hydrator.format.input;
 
 import co.cask.cdap.api.data.schema.Schema;
 
+import java.io.IOException;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -30,7 +31,7 @@ public interface FileInputFormatterProvider {
    * Get the schema that the format requires, if it requires a specific schema.
    */
   @Nullable
-  Schema getSchema(@Nullable String pathField);
+  Schema getSchema(@Nullable String pathField) throws IOException;
 
   /**
    * Creates a FileInputFormatter.

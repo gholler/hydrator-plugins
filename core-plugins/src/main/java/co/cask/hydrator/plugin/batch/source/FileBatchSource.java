@@ -33,6 +33,7 @@ import co.cask.hydrator.format.plugin.AbstractFileSource;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import java.io.IOException;
 import java.lang.reflect.Type;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -86,12 +87,12 @@ public class FileBatchSource extends AbstractFileSource<FileSourceConfig> {
    * @return schema of fields
    */
   @Path("getSchema")
-  public Schema getSchema(FileSourceConfig config, EndpointPluginContext pluginContext) {
+  public Schema getSchema(FileSourceConfig config, EndpointPluginContext pluginContext) throws IOException {
     FileFormat fileFormat = config.getFormat();
     if (fileFormat == null) {
       return config.getSchema();
     }
-    Schema schema = fileFormat.getSchema(config.getPathField());
+    Schema schema = fileFormat.getSchema(config.getPath());
     return schema == null ? config.getSchema() : schema;
   }
 

@@ -34,6 +34,7 @@ import co.cask.hydrator.format.output.JsonOutputProvider;
 import co.cask.hydrator.format.output.OrcOutputProvider;
 import co.cask.hydrator.format.output.ParquetOutputProvider;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -116,7 +117,7 @@ public enum FileFormat {
    * @return the schema required by the format, if it exists
    */
   @Nullable
-  public Schema getSchema(@Nullable String pathField) {
+  public Schema getSchema(@Nullable String pathField) throws IOException {
     if (inputProvider == null) {
       throw new IllegalArgumentException(String.format("Format '%s' cannot be used for reading.", this.name()));
     }
