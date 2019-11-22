@@ -58,7 +58,7 @@ public abstract class AbstractFileSink<T extends PluginConfig & FileSinkProperti
   }
 
   @Override
-  public final void prepareRun(BatchSinkContext context) {
+  public  void prepareRun(BatchSinkContext context) {
     config.validate();
 
     // set format specific properties.
@@ -120,7 +120,7 @@ public abstract class AbstractFileSink<T extends PluginConfig & FileSinkProperti
                                 outputFields);
   }
 
-  private String getOutputDir(long logicalStartTime) {
+  public String getOutputDir(long logicalStartTime) {
     String suffix = config.getSuffix();
     String timeSuffix = suffix == null || suffix.isEmpty() ? "" : new SimpleDateFormat(suffix).format(logicalStartTime);
     return String.format("%s/%s", config.getPath(), timeSuffix);

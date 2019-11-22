@@ -169,6 +169,9 @@ public abstract class AbstractFileSourceConfig extends PluginConfig implements F
     }
   }
 
+  public void setReferenceName(String referenceName) {
+    this.referenceName = referenceName;
+  }
   public boolean shouldCopyHeader() {
     return copyHeader;
   }
