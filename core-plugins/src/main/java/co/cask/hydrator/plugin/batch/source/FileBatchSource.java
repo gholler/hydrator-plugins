@@ -24,12 +24,15 @@ import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.dataset.DatasetProperties;
 import co.cask.cdap.api.dataset.lib.KeyValueTable;
 import co.cask.cdap.api.plugin.EndpointPluginContext;
+import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
+import co.cask.hydrator.common.Constants;
 import co.cask.hydrator.format.FileFormat;
 import co.cask.hydrator.format.input.PathTrackingInputFormat;
 import co.cask.hydrator.format.input.TextInputProvider;
 import co.cask.hydrator.format.plugin.AbstractFileSource;
+import co.cask.hydrator.format.plugin.FileSourceProperties;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -60,7 +63,8 @@ public class FileBatchSource extends AbstractFileSource<FileSourceConfig> {
   static final String CUTOFF_READ_TIME = "cutoff.read.time";
   static final String USE_TIMEFILTER = "timefilter";
   private static final Gson GSON = new Gson();
-  private static final Type ARRAYLIST_DATE_TYPE = new TypeToken<ArrayList<Date>>() { }.getType();
+  private static final Type ARRAYLIST_DATE_TYPE = new TypeToken<ArrayList<Date>>() {
+  }.getType();
   private final FileSourceConfig config;
 
   public FileBatchSource(FileSourceConfig config) {
@@ -81,7 +85,7 @@ public class FileBatchSource extends AbstractFileSource<FileSourceConfig> {
   /**
    * Endpoint method to get the output schema of a source.
    *
-   * @param config configuration for the source
+   * @param config        configuration for the source
    * @param pluginContext context to create plugins
    * @return schema of fields
    */
@@ -93,6 +97,43 @@ public class FileBatchSource extends AbstractFileSource<FileSourceConfig> {
     }
     Schema schema = fileFormat.getSchema(config.getPathField());
     return schema == null ? config.getSchema() : schema;
+  }
+
+  @Override
+  public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
+    ((FileSourceProperties) this.config).validate();
+    pipelineConfigurer.createDataset(config.getReferenceName(), Constants.EXTERNAL_DATASET_TYPE,
+        DatasetProperties.builder()
+            .add(DatasetProperties.SCHEMA, config.getSchema().toString())
+            .addAll(config.getProperties().getProperties()).build());
+
+    Schema schema = config.getSchema();
+    FileFormat fileFormat = config.getFormat();
+    if (fileFormat != null) {
+      fileFormat.getFileInputFormatter(config.getProperties().getProperties(), schema);
+    }
+
+    String pathField = config.getPathField();
+    if (pathField != null && schema != null) {
+      Schema.Field schemaPathField = schema.getField(pathField);
+      if (schemaPathField == null) {
+        throw new IllegalArgumentException(
+            String.format("Path field '%s' is not present in the schema. " +
+                    "Please add it to the schema as a string field.",
+                pathField));
+      }
+      Schema pathFieldSchema = schemaPathField.getSchema();
+      Schema.Type pathFieldType = pathFieldSchema.isNullable() ? pathFieldSchema.getNonNullable().getType() :
+          pathFieldSchema.getType();
+      if (pathFieldType != Schema.Type.STRING) {
+        throw new IllegalArgumentException(
+            String.format("Path field '%s' must be of type 'string'," +
+                " but found '%s'.", pathField, pathFieldType));
+      }
+    }
+
+    pipelineConfigurer.getStageConfigurer().setOutputSchema(config.getSchema());
+
   }
 
   @Override
