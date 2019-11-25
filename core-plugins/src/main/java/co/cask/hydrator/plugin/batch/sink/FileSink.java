@@ -20,21 +20,29 @@ import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
+import co.cask.cdap.api.data.batch.Output;
+import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.dataset.DatasetProperties;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.hydrator.common.Constants;
+import co.cask.hydrator.common.LineageRecorder;
+import co.cask.hydrator.common.batch.sink.SinkOutputFormatProvider;
+import co.cask.hydrator.format.output.FileOutputFormatter;
 import co.cask.hydrator.format.plugin.AbstractFileSink;
 import co.cask.hydrator.format.plugin.AbstractFileSinkConfig;
 import co.cask.hydrator.format.plugin.FileSinkProperties;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.lang.reflect.Type;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 /**
@@ -45,6 +53,7 @@ import javax.annotation.Nullable;
 @Description("Writes to the FileSystem.")
 public class FileSink extends AbstractFileSink<FileSink.Conf> {
   private final Conf config;
+  private FileOutputFormatter<Object, Object> outputFormatter;
 
   public FileSink(Conf config) {
     super(config);
@@ -59,18 +68,38 @@ public class FileSink extends AbstractFileSink<FileSink.Conf> {
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     ((FileSinkProperties) this.config).validate();
+    config.setReferenceName(encryptId(config.getPath()));
+    Map<String, String> pipelineproperties = new HashMap<>(config.getProperties().getProperties());
+    pipelineproperties.put("referenceName", config.getReferenceName());
     pipelineConfigurer.createDataset(config.getReferenceName(), Constants.EXTERNAL_DATASET_TYPE,
-            DatasetProperties.builder()
-                    .add(DatasetProperties.SCHEMA, pipelineConfigurer.getStageConfigurer().getInputSchema().toString())
-                    .addAll(config.getProperties().getProperties()).build());
+        DatasetProperties.builder()
+            .add(DatasetProperties.SCHEMA, pipelineConfigurer.getStageConfigurer().getInputSchema().toString())
+            .addAll(pipelineproperties).build());
 
   }
+
+  public static String encryptId(String referenceId) {
+    if (referenceId.startsWith("/")) {
+      referenceId = referenceId.replaceFirst("/", "file_");
+    }
+    return referenceId.replace("/", "_--_").replace(":", "-__-").replace(".", "-___-")
+        .replace("*", "_---_");
+  }
+
+  @Override
+  public void prepareRun(BatchSinkContext context) {
+    config.validate();
+    config.setReferenceName(encryptId(config.getPath()));
+    super.prepareRun(context);
+  }
+
   /**
    * Config for File Sink.
    */
   public static class Conf extends AbstractFileSinkConfig {
     private static final Gson GSON = new Gson();
-    private static final Type MAP_TYPE = new TypeToken<Map<String, String>>() { }.getType();
+    private static final Type MAP_TYPE = new TypeToken<Map<String, String>>() {
+    }.getType();
 
     @Macro
     @Description("Destination path prefix. For example, 'hdfs://mycluster.net:8020/output'")

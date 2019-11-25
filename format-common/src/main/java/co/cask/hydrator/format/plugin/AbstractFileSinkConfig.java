@@ -74,6 +74,11 @@ public abstract class AbstractFileSinkConfig extends PluginConfig implements Fil
     return referenceName;
   }
 
+
+  public void setReferenceName(String referenceName) {
+     this.referenceName = referenceName;
+  }
+
   @Override
   @Nullable
   public String getSuffix() {

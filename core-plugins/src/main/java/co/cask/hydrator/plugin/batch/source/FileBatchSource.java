@@ -20,6 +20,7 @@ import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
 import co.cask.cdap.api.common.Bytes;
+import co.cask.cdap.api.data.batch.Input;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.dataset.DatasetProperties;
 import co.cask.cdap.api.dataset.lib.KeyValueTable;
@@ -28,14 +29,27 @@ import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
 import co.cask.hydrator.common.Constants;
+import co.cask.hydrator.common.LineageRecorder;
+import co.cask.hydrator.common.SourceInputFormatProvider;
+import co.cask.hydrator.common.batch.JobUtils;
 import co.cask.hydrator.format.FileFormat;
+import co.cask.hydrator.format.RegexPathFilter;
+import co.cask.hydrator.format.input.CombinePathTrackingInputFormat;
+import co.cask.hydrator.format.input.EmptyInputFormat;
 import co.cask.hydrator.format.input.PathTrackingInputFormat;
 import co.cask.hydrator.format.input.TextInputProvider;
 import co.cask.hydrator.format.plugin.AbstractFileSource;
+import co.cask.hydrator.format.plugin.FileSinkProperties;
 import co.cask.hydrator.format.plugin.FileSourceProperties;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 
+import java.io.IOException;
 import java.lang.reflect.Type;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -46,6 +60,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import javax.ws.rs.Path;
 
 
@@ -72,14 +87,66 @@ public class FileBatchSource extends AbstractFileSource<FileSourceConfig> {
     this.config = config;
   }
 
+  private static String encryptId(String referenceId) {
+    if (referenceId.startsWith("/")) {
+      referenceId = referenceId.replaceFirst("/", "file_");
+    }
+    return referenceId.replace("/", "_--_").replace(":", "-__-").replace(".", "-___-")
+        .replace("*", "_---_");
+  }
+
   @Override
   public void prepareRun(BatchSourceContext context) throws Exception {
+    config.validate();
+    config.setReferenceName(encryptId(config.getPath()));
     super.prepareRun(context);
+  }
 
-    // Need to create dataset now if macro was provided at configure time
-    if (config.getTimeTable() != null && !context.datasetExists(config.getTimeTable())) {
-      context.createDataset(config.getTimeTable(), KeyValueTable.class.getName(), DatasetProperties.EMPTY);
+  @Override
+  public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
+    ((FileSourceProperties) this.config).validate();
+    config.setReferenceName(encryptId(config.getPath()));
+    Map<String, String> pipelineproperties = new HashMap<>(config.getProperties().getProperties());
+    pipelineproperties.put("referenceName", config.getReferenceName());
+    pipelineConfigurer.createDataset(config.getReferenceName(), Constants.EXTERNAL_DATASET_TYPE,
+        DatasetProperties.builder()
+            .add(DatasetProperties.SCHEMA, config.getSchema().toString())
+            .addAll(pipelineproperties).build());
+
+    Schema schema = config.getSchema();
+    FileFormat fileFormat = config.getFormat();
+    if (fileFormat != null) {
+      fileFormat.getFileInputFormatter(config.getProperties().getProperties(), schema);
     }
+
+    String pathField = config.getPathField();
+    if (pathField != null && schema != null) {
+      Schema.Field schemaPathField = schema.getField(pathField);
+      if (schemaPathField == null) {
+        throw new IllegalArgumentException(String.format("Path field '%s' is not present in the schema." +
+                " Please add it to the schema as a string field.",
+                pathField));
+      }
+      Schema pathFieldSchema = schemaPathField.getSchema();
+      Schema.Type pathFieldType = pathFieldSchema.isNullable() ? pathFieldSchema.getNonNullable().getType() :
+          pathFieldSchema.getType();
+      if (pathFieldType != Schema.Type.STRING) {
+        throw new IllegalArgumentException(
+            String.format("Path field '%s' must be of type 'string', but found '%s'.", pathField, pathFieldType));
+      }
+    }
+    pipelineConfigurer.getStageConfigurer().setOutputSchema(config.getSchema());
+
+  }
+
+  private String getPath() {
+    String path;
+    if (config.getPath().startsWith("/")) {
+      path = config.getPath().replaceFirst("/", "file_");
+    } else {
+      path = config.getPath();
+    }
+    return path;
   }
 
   /**
@@ -97,43 +164,6 @@ public class FileBatchSource extends AbstractFileSource<FileSourceConfig> {
     }
     Schema schema = fileFormat.getSchema(config.getPathField());
     return schema == null ? config.getSchema() : schema;
-  }
-
-  @Override
-  public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
-    ((FileSourceProperties) this.config).validate();
-    pipelineConfigurer.createDataset(config.getReferenceName(), Constants.EXTERNAL_DATASET_TYPE,
-        DatasetProperties.builder()
-            .add(DatasetProperties.SCHEMA, config.getSchema().toString())
-            .addAll(config.getProperties().getProperties()).build());
-
-    Schema schema = config.getSchema();
-    FileFormat fileFormat = config.getFormat();
-    if (fileFormat != null) {
-      fileFormat.getFileInputFormatter(config.getProperties().getProperties(), schema);
-    }
-
-    String pathField = config.getPathField();
-    if (pathField != null && schema != null) {
-      Schema.Field schemaPathField = schema.getField(pathField);
-      if (schemaPathField == null) {
-        throw new IllegalArgumentException(
-            String.format("Path field '%s' is not present in the schema. " +
-                    "Please add it to the schema as a string field.",
-                pathField));
-      }
-      Schema pathFieldSchema = schemaPathField.getSchema();
-      Schema.Type pathFieldType = pathFieldSchema.isNullable() ? pathFieldSchema.getNonNullable().getType() :
-          pathFieldSchema.getType();
-      if (pathFieldType != Schema.Type.STRING) {
-        throw new IllegalArgumentException(
-            String.format("Path field '%s' must be of type 'string'," +
-                " but found '%s'.", pathField, pathFieldType));
-      }
-    }
-
-    pipelineConfigurer.getStageConfigurer().setOutputSchema(config.getSchema());
-
   }
 
   @Override
