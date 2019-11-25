@@ -90,33 +90,7 @@ public class FileSink extends AbstractFileSink<FileSink.Conf> {
   public void prepareRun(BatchSinkContext context) {
     config.validate();
     config.setReferenceName(encryptId(config.getPath()));
-    // set format specific properties.
-    outputFormatter = config.getFormat().getFileOutputFormatter(config.getProperties().getProperties(),
-        config.getSchema());
-    if (outputFormatter == null) {
-      // should never happen, as validation should enforce the allowed formats
-      throw new IllegalArgumentException(String.format("Format '%s' cannot be used to write data.",
-          config.getFormat()));
-    }
-
-    // record field level lineage information
-    // needs to happen before context.addOutput(), otherwise an external dataset without schema will be created.
-    Schema schema = config.getSchema();
-    if (schema == null) {
-      schema = context.getInputSchema();
-    }
-    LineageRecorder lineageRecorder = new LineageRecorder(context, config.getReferenceName());
-    lineageRecorder.createExternalDataset(schema);
-    if (schema != null && schema.getFields() != null && !schema.getFields().isEmpty()) {
-      recordLineage(lineageRecorder,
-          schema.getFields().stream().map(Schema.Field::getName).collect(Collectors.toList()));
-    }
-
-    Map<String, String> outputProperties = new HashMap<>(outputFormatter.getFormatConfig());
-    outputProperties.putAll(getFileSystemProperties(context));
-    outputProperties.put(FileOutputFormat.OUTDIR, getOutputDir(context.getLogicalStartTime()));
-    context.addOutput(Output.of(config.getReferenceName(),
-        new SinkOutputFormatProvider(outputFormatter.getFormatClassName(), outputProperties)));
+    super.prepareRun(context);
   }
 
   /**

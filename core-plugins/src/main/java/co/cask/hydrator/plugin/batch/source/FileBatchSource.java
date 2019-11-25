@@ -99,63 +99,7 @@ public class FileBatchSource extends AbstractFileSource<FileSourceConfig> {
   public void prepareRun(BatchSourceContext context) throws Exception {
     config.validate();
     config.setReferenceName(encryptId(config.getPath()));
-    Job job = JobUtils.createInstance();
-    Configuration conf = job.getConfiguration();
-    Pattern pattern = config.getFilePattern();
-    if (pattern != null) {
-      RegexPathFilter.configure(conf, pattern);
-      FileInputFormat.setInputPathFilter(job, RegexPathFilter.class);
-    }
-    FileInputFormat.setInputDirRecursive(job, config.shouldReadRecursively());
-
-    Schema schema = config.getSchema();
-    LineageRecorder lineageRecorder = new LineageRecorder(context, config.getReferenceName());
-    lineageRecorder.createExternalDataset(schema);
-
-    if (schema != null && schema.getFields() != null) {
-      recordLineage(lineageRecorder,
-          schema.getFields().stream().map(Schema.Field::getName).collect(Collectors.toList()));
-    }
-
-    // set entries here, before FileSystem is used
-    for (Map.Entry<String, String> entry : getFileSystemProperties(context).entrySet()) {
-      conf.set(entry.getKey(), entry.getValue());
-    }
-
-    org.apache.hadoop.fs.Path path = new org.apache.hadoop.fs.Path(config.getPath());
-    FileSystem pathFileSystem = FileSystem.get(path.toUri(), conf);
-    FileStatus[] fileStatus = pathFileSystem.globStatus(path);
-
-    String inputFormatClass;
-    if (fileStatus == null) {
-      if (config.shouldAllowEmptyInput()) {
-        inputFormatClass = EmptyInputFormat.class.getName();
-      } else {
-        throw new IOException(String.format("Input path %s does not exist", path));
-      }
-    } else {
-      FileInputFormat.addInputPath(job, path);
-      FileInputFormat.setMaxInputSplitSize(job, config.getMaxSplitSize());
-      PathTrackingInputFormat.configure(job, config, config.getProperties().getProperties());
-      FileFormat format = config.getFormat();
-      if (format == FileFormat.BLOB) {
-        inputFormatClass = PathTrackingInputFormat.class.getName();
-      } else {
-        inputFormatClass = CombinePathTrackingInputFormat.class.getName();
-      }
-    }
-
-    // set entries here again, in case anything set by PathTrackingInputFormat should be overridden
-    for (Map.Entry<String, String> entry : getFileSystemProperties(context).entrySet()) {
-      conf.set(entry.getKey(), entry.getValue());
-    }
-
-    context.setInput(Input.of(config.getReferenceName(), new SourceInputFormatProvider(inputFormatClass, conf)));
-
-    // Need to create dataset now if macro was provided at configure time
-    if (config.getTimeTable() != null && !context.datasetExists(config.getTimeTable())) {
-      context.createDataset(config.getTimeTable(), KeyValueTable.class.getName(), DatasetProperties.EMPTY);
-    }
+    super.prepareRun(context);
   }
 
   @Override
