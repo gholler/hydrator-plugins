@@ -39,3 +39,7 @@ The default value is false.
 will error when there is no data to read. When set to true, no error will be thrown and zero records will be read.
 
 **File System Properties:** Additional properties to use with the InputFormat when reading the data.
+
+
+Note: Plugin dataset is created via Path name and special characters of path (/,:,*,.) is replaced with ("\_--\_","-\_\_-","\_---\_", "-\_\_\_-").
+      Sample Dataset name is (/tmp/myfile.csv) -> (file_tmp_--\_myfile-\_\_\_-csv).
