@@ -52,6 +52,8 @@ import org.apache.hadoop.hbase.mapreduce.TableOutputFormat;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.List;
@@ -67,6 +69,7 @@ import javax.annotation.Nullable;
 @Description("HBase Batch Sink")
 public class HBaseSink extends ReferenceBatchSink<StructuredRecord, NullWritable, Mutation> {
 
+  private static final Logger LOG = LoggerFactory.getLogger(HBaseSink.class);
   private HBaseSinkConfig config;
   private RecordPutTransformer recordPutTransformer;
 
@@ -116,10 +119,12 @@ public class HBaseSink extends ReferenceBatchSink<StructuredRecord, NullWritable
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
     setReferenceName();
+    Map<String, String> pipelineproperties = new HashMap<>(config.getProperties().getProperties());
+    pipelineproperties.put("referenceName", config.referenceName);
     pipelineConfigurer.createDataset(config.referenceName, Constants.EXTERNAL_DATASET_TYPE,
         DatasetProperties.builder()
             .add(DatasetProperties.SCHEMA, pipelineConfigurer.getStageConfigurer().getInputSchema().toString())
-            .addAll(config.getProperties().getProperties()).build());
+            .addAll(pipelineproperties).build());
     Preconditions.checkArgument(!Strings.isNullOrEmpty(config.rowField),
         "Row field must be given as a property.");
     Schema outputSchema =
@@ -150,6 +155,7 @@ public class HBaseSink extends ReferenceBatchSink<StructuredRecord, NullWritable
       String zkNodeParent = !Strings.isNullOrEmpty(config.zkNodeParent) ? config.zkNodeParent : "/hbase";
       conf.put(TableOutputFormat.QUORUM_ADDRESS, String.format("%s:%s:%s", zkQuorum, zkClientPort, zkNodeParent));
       conf.putAll(addProp);
+
       String[] serializationClasses = {
           configuration.get("io.serializations"),
           MutationSerialization.class.getName(),

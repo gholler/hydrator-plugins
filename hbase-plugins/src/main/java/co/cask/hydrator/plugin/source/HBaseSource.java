@@ -44,6 +44,9 @@ import org.apache.hadoop.hbase.mapreduce.MutationSerialization;
 import org.apache.hadoop.hbase.mapreduce.ResultSerialization;
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  *
  */
@@ -84,10 +87,12 @@ public class HBaseSource extends ReferenceBatchSource<ImmutableBytesWritable, Re
     super.configurePipeline(pipelineConfigurer);
     try {
       setReferenceName();
+      Map<String, String> pipelineproperties = new HashMap<>(config.getProperties().getProperties());
+      pipelineproperties.put("referenceName", config.referenceName);
       pipelineConfigurer.createDataset(config.referenceName, Constants.EXTERNAL_DATASET_TYPE,
           DatasetProperties.builder()
               .add(DatasetProperties.SCHEMA, Schema.parseJson(config.schema).toString())
-              .addAll(config.getProperties().getProperties()).build());
+              .addAll(pipelineproperties).build());
 
       pipelineConfigurer.getStageConfigurer().setOutputSchema(Schema.parseJson(config.schema));
     } catch (Exception e) {
