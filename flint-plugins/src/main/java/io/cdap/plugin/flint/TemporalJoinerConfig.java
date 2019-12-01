@@ -15,6 +15,10 @@ import io.cdap.plugin.common.KeyValueListParser;
 import javax.annotation.Nullable;
 import java.util.*;
 
+import static io.cdap.plugin.flint.TemporalJoinerConfig.JoinKeyParseState.HAS_KEY;
+import static io.cdap.plugin.flint.TemporalJoinerConfig.JoinKeyParseState.INIT;
+import static io.cdap.plugin.flint.TemporalJoinerConfig.JoinKeyParseState.IS_NA;
+
 public class TemporalJoinerConfig extends PluginConfig {
     private static final String NUM_PARTITIONS_DESC = "Number of partitions to use when joining. " +
             "If not specified, the execution framework will decide how many to use.";
@@ -55,11 +59,9 @@ public class TemporalJoinerConfig extends PluginConfig {
 
 
     @Description(TIME_FIELD_LEFT_DESC)
-    @Nullable
     protected String timeFieldLeft;
 
     @Description(TIME_FIELD_RIGHT_DESC)
-    @Nullable
     protected String timeFieldRight;
 
     @Description(TOLERANCE_DESC)
@@ -69,7 +71,6 @@ public class TemporalJoinerConfig extends PluginConfig {
     @Description(SELECTED_FIELDS)
     protected String selectedFields;
 
-    @Nullable
     @Description(LEFT_INPUT_DESC)
     protected String leftInput;
 
@@ -118,6 +119,13 @@ public class TemporalJoinerConfig extends PluginConfig {
         return tolerance;
     }
 
+    enum JoinKeyParseState {
+        INIT,
+        HAS_KEY,
+        IS_NA
+
+    }
+
     Map<String, List<String>> getPerStageJoinKeys() {
         Map<String, List<String>> stageToKey = new HashMap<>();
 
@@ -141,9 +149,34 @@ public class TemporalJoinerConfig extends PluginConfig {
                 throw new IllegalArgumentException("There should be one join key from each of the stages. Please add join " +
                         "keys for each stage.");
             }
+            JoinKeyParseState joinKeyParseState = INIT;
+            // "--" both sides are ok, and must be skipped
             for (KeyValue<String, String> keyValue : keyValues) {
                 String stageName = keyValue.getKey();
                 String joinKey = keyValue.getValue();
+                switch (joinKeyParseState) {
+                    case INIT:
+                        if (joinKey.startsWith("--")) {
+                            joinKeyParseState = IS_NA;
+                            continue;
+                        }
+                        else {
+                            joinKeyParseState = HAS_KEY;
+                        }
+                        break;
+                    case HAS_KEY:
+                        if (joinKey.startsWith("--")) {
+                            throw new IllegalArgumentException("Join key not matched: "+joinKey);
+                        }
+                        break;
+                    case IS_NA:
+                        if (joinKey.startsWith("--")) {
+                            continue;
+                        }
+                        else {
+                            throw new IllegalArgumentException("Join key not matched: "+joinKey);
+                        }
+                }
                 if (!stageToKey.containsKey(stageName)) {
                     stageToKey.put(stageName, new ArrayList<String>());
                 }
