@@ -45,6 +45,7 @@
     <module>kafka-plugins</module>
     <module>amazon-s3-plugins</module>
     <module>condition-plugins</module>
+    <module>flint-plugins</module>
   </modules>
 
   <licenses>
@@ -64,6 +65,58 @@
       <organizationUrl>http://www.cdap.io</organizationUrl>
     </developer>
   </developers>
+
+
+    <repositories>
+        <repository>
+            <id>apache</id>
+            <url>https://repository.apache.org/content/repositories/public/</url>
+            <releases>
+                <enabled>true</enabled>
+                <updatePolicy>daily</updatePolicy>
+                <checksumPolicy>fail</checksumPolicy>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>hortonworks</id>
+            <name>hortonworks</name>
+            <url>http://repo.hortonworks.com/content/repositories/releases/</url>
+            <layout>default</layout>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>sonatype</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>always</updatePolicy>
+                <checksumPolicy>fail</checksumPolicy>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>snapshot</id>
+            <url>https://repository.apache.org/content/repositories/snapshots/</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>always</updatePolicy>
+                <checksumPolicy>fail</checksumPolicy>
+            </snapshots>
+        </repository>
+    </repositories>
 
   <scm>
     <connection>scm:git:https://github.com/caskdata/hydrator-plugins.git</connection>
@@ -714,7 +767,7 @@
       <plugin>
         <groupId>org.apache.rat</groupId>
         <artifactId>apache-rat-plugin</artifactId>
-        <version>0.10</version>
+        <version>0.11</version>
         <dependencies>
           <dependency>
             <groupId>org.apache.maven.doxia</groupId>
